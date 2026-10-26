@@ -63,13 +63,16 @@ namespace Pk3DSRNGTool
         public MainForm()
         {
             InitializeComponent();
-            var tinyIndexMenu = new ToolStripMenuItem("G6 TinyMT 索引搜索 (TinyFinder)");
+            InitializeTinyInputs();
+            var tinyIndexMenu = new ToolStripMenuItem("G6 遭遇搜索器（TinyFinder）");
             tinyIndexMenu.Click += (s, e) =>
             {
-                if (tinyIndexTool == null || tinyIndexTool.IsDisposed) tinyIndexTool = new TinyIndexTool(this);
-                tinyIndexTool.Show(this); tinyIndexTool.Focus();
+                ShowTinyFinder();
             };
             M_Tool.DropDownItems.Insert(4, tinyIndexMenu);
+            var mtSearchMenu = new ToolStripMenuItem("G6 MT／PID／EC／群战种子搜索（TinyFinder）");
+            mtSearchMenu.Click += (s, e) => ShowTinyFinderMT();
+            M_Tool.DropDownItems.Insert(5, mtSearchMenu);
         }
 
         #region Form Loading
@@ -205,8 +208,28 @@ namespace Pk3DSRNGTool
 
         private void RefreshLocation()
         {
+            if (UseTinyFinderWild && TinyFinderWildMethod == TinyFinder.Controls.EnctrKey.FS)
+            {
+                ea = null;
+                foreach (var item in Slot.CheckBoxItems) item.Checked = false;
+                MetLocation.Visible = L_Location.Visible = false; SlotSpecies.Visible = L_Slots.Visible = true;
+                SlotSpecies.DisplayMember = "Text"; SlotSpecies.ValueMember = "Value";
+                SlotSpecies.DataSource = TinyFinder.WildIntegration.GetSafariSpecies().Select(s => new ComboItem(speciestr[s & 0x7FF] + (s >> 11 == 0 ? "" : " (" + (s >> 11) + ")"), s)).ToList();
+                return;
+            }
             int[] locationlist = null;
-            if (Gen6 && !IsDexNav)
+            if (UseTinyFinderWild && TinyFinderWildMethod != TinyFinder.Controls.EnctrKey.FS)
+            {
+                var areas = TinyFinder.WildIntegration.GetAreas(Ver, TinyFinderWildMethod);
+                if (TinyFinderWildMethod == TinyFinder.Controls.EnctrKey.Fishing)
+                {
+                    string rod = Poke.SelectedIndex == 0 ? "Old Rod" : Poke.SelectedIndex == 1 ? "Good Rod" : "Super Rod";
+                    areas = areas.Where(a => a.Terrain == rod).ToList();
+                }
+                LocationTable6.TableNow = areas.Select((a, i) => (EncounterArea)new TinyFinderArea6(a, i)).ToArray();
+                locationlist = LocationTable6.TableNow.Select(a => a.Locationidx).ToArray();
+            }
+            else if (Gen6 && !IsDexNav)
                 locationlist = LocationTable6.getLocation(FormPM as PKMW6, Ver < 2);
             else if (Gen7)
                 locationlist = FormPM.Conceptual ? LocationTable7.getLocation(CB_Category.SelectedIndex, Ver > 6) : (FormPM as PKMW7)?.Location;
@@ -219,14 +242,17 @@ namespace Pk3DSRNGTool
             MetLocation.DisplayMember = "Text";
             MetLocation.ValueMember = "Value";
             MetLocation.DataSource = new BindingSource(Locationlist, null);
-
-            RefreshWildSpecies();
+            if (MetLocation.SelectedValue is int) MetLocation_SelectedIndexChanged(null, EventArgs.Empty);
         }
 
         private void RefreshWildSpecies()
         {
             int tmp = SlotSpecies.SelectedIndex;
-            var species = slotspecies;
+            if (UseTinyFinderWild && IsHorde)
+                foreach (var item in Slot.CheckBoxItems) item.Checked = false;
+            var species = ea == null ? new int[0] : slotspecies;
+            if (ea is TinyFinderArea6 tfArea && IsHorde) species = tfArea.Data.Species.Where((s, i) => i % 5 == 0).Select(TinyFinder.WildIntegration.ToSpeciesForm).ToArray();
+            if (ea is TinyFinderArea6 navArea && IsDexNav && tinyWildExclusive.Checked) species = species.Concat(navArea.Data.ExclusiveSpecies.Select(TinyFinder.WildIntegration.ToSpeciesForm)).ToArray();
             var List = (Gen7 && CB_Category.SelectedIndex < 3 ? species.Skip(1) : species).Distinct().Select(SpecForm => new ComboItem(speciestr[SpecForm & 0x7FF], SpecForm)).ToList();
             if (gen7fishing)
                 for (int i = 0; i < List.Count; i++)
@@ -247,6 +273,7 @@ namespace Pk3DSRNGTool
         private void LoadSlotSpeciesInfo()
         {
             int SpecForm = (int)SlotSpecies.SelectedValue;
+            if (UseTinyFinderWild && TinyFinderWildMethod == TinyFinder.Controls.EnctrKey.FS) { SetPersonalInfo(SpecForm, skip: true); return; }
             List<int> Slotidx = new List<int>();
             for (int i = Array.IndexOf(slotspecies, SpecForm); i > -1; i = Array.IndexOf(slotspecies, SpecForm, i + 1))
                 Slotidx.Add(i);
@@ -431,10 +458,11 @@ namespace Pk3DSRNGTool
 
         private void Status_ValueChanged(object sender, EventArgs e)
         {
-            Properties.Settings.Default.ST0 = St0.Value;
-            Properties.Settings.Default.ST1 = St1.Value;
-            Properties.Settings.Default.ST2 = St2.Value;
-            Properties.Settings.Default.ST3 = St3.Value;
+            var state = Status;
+            Properties.Settings.Default.ST0 = state[0];
+            Properties.Settings.Default.ST1 = state[1];
+            Properties.Settings.Default.ST2 = state[2];
+            Properties.Settings.Default.ST3 = state[3];
         }
 
         private void Key_ValueChanged(object sender, EventArgs e)
@@ -518,6 +546,7 @@ namespace Pk3DSRNGTool
             }
             UpdateTTTMethod();
             CreateTimeline.Visible = TimeSpan.Visible = Gen7 && Method < 3 || MainRNGEgg.Checked || gen6timeline_available;
+            UpdateTinyFinderWildControls();
         }
 
         private void SearchMethod_CheckedChanged(object sender, EventArgs e)
@@ -828,6 +857,7 @@ namespace Pk3DSRNGTool
             CreateTimeline_CheckedChanged(null, null);
             DoubleEverstone(null, null);
             SetLeapRange();
+            UpdateTinyFinderWildControls();
 
             switch (Method)
             {
@@ -903,6 +933,7 @@ namespace Pk3DSRNGTool
         // Wild RNG
         private void MetLocation_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if (!(MetLocation.SelectedValue is int)) return;
             if (Gen7)
             {
                 ea = LocationTable7.TableNow.FirstOrDefault(t => t.Locationidx == (int)MetLocation.SelectedValue);
@@ -956,7 +987,9 @@ namespace Pk3DSRNGTool
             else if (Gen6)
             {
                 ea = LocationTable6.TableNow.FirstOrDefault(t => t.Locationidx == (int)MetLocation.SelectedValue);
-                if (FormPM is PKMW6 pm && pm.Type == EncounterType.Fishing)
+                if (ea is TinyFinderArea6)
+                    ApplyTinyFinderLocationDefaults();
+                else if (FormPM is PKMW6 pm && pm.Type == EncounterType.Fishing)
                 {
                     Special_th.Value = SuctionCups ? 98 : 49;
                     ea = (ea as FishingArea6).GetRodArea(pm.Species);
@@ -1198,6 +1231,7 @@ namespace Pk3DSRNGTool
                         default: Special_th.Value = 0; break;
                     }
                 }
+                if (UseTinyFinderWild) { ApplyTinyFinderLocationDefaults(); UpdateTinyFinderWildControls(); }
                 return;
             }
             switch (specform)
@@ -1335,7 +1369,8 @@ namespace Pk3DSRNGTool
             PerfectIVCount = (byte)PerfectIVs.Value,
 
             Level = (byte)Filter_Lv.Value,
-            Slot = new bool[IsLinux ? 1 : 0].Concat(Slot.CheckBoxItems.Select(e => Gen6 && !CreateTimeline.Checked ? false : e.Checked)).ToArray(),
+            Slot = new bool[IsLinux ? 1 : 0].Concat(Slot.CheckBoxItems.Select(e => Gen6 && !CreateTimeline.Checked &&
+                (!UseTinyFinderWild || TinyFinderWildMethod == TinyFinder.Controls.EnctrKey.Radar && ChainLength.Value > 0) ? false : e.Checked)).ToArray(),
             SpecialOnly = SpecialOnly.Checked,
 
             Ball = (byte)Ball.SelectedIndex,
@@ -1467,6 +1502,7 @@ namespace Pk3DSRNGTool
 
         private WildRNG getWildSetting()
         {
+            if (activeWildPrediction != null) return GetTinyFinderWildGenerator();
             WildRNG setting = Gen6 ? new Wild6() : (WildRNG)new Wild7();
             setting.Synchro_Stat = (byte)(SyncNature.SelectedIndex - 1);
             switch ((Lead)LeadAbility.SelectedIndex)
@@ -1707,12 +1743,14 @@ namespace Pk3DSRNGTool
             dgv_synced.Visible = Method < 3 && FormPM.Syncable && !IsEvent;
             dgv_gender.Visible =
             dgv_nature.Visible = !IsTransporter;
-            dgv_item.Visible = Method == 2 && (Gen7 || Gen6 && gen6timeline || FullInfoHorde);
-            dgv_Lv.Visible = dgv_slot.Visible = Method == 2 && (Gen7 || Gen6 && gen6timeline || IsHorde);
+            dgv_item.Visible = Method == 2 && (Gen7 || Gen6 && gen6timeline || FullInfoHorde || UseTinyFinderWild);
+            dgv_Lv.Visible = dgv_slot.Visible = Method == 2 && (Gen7 || Gen6 && gen6timeline || IsHorde || UseTinyFinderWild);
+            if (UseTinyFinderWild && TinyFinderWildMethod == TinyFinder.Controls.EnctrKey.Radar && ChainLength.Value > 0)
+                dgv_item.Visible = dgv_slot.Visible = false; // Patch generation does not determine entry slot/item.
             dgv_rand.Visible = Gen6 || Gen7 && Method == 3 && !MainRNGEgg.Checked;
             dgv_rand.Visible &= Advanced.Checked;
             dgv_state.Visible = Gen6 && Method < 4;
-            dgv_tinystate.Visible = Gen6 && (Method == 0 || Method == 2) && gen6timeline || Gen7 && Method == 3 && !MainRNGEgg.Checked;
+            dgv_tinystate.Visible = Gen6 && (Method == 0 || Method == 2) && gen6timeline || UseTinyFinderWild || Gen7 && Method == 3 && !MainRNGEgg.Checked;
             dgv_tinystate.HeaderText = COLUMN_STR[lindex][Gen7 ? 1 : 2];
             SetAsAfter.Visible = Gen7 && Method == 3 && !MainRNGEgg.Checked;
             SetAsCurrent.Visible = Method == 3 && !MainRNGEgg.Checked;
@@ -1740,6 +1778,8 @@ namespace Pk3DSRNGTool
 
         private void Search_Click(object sender, EventArgs e)
         {
+            if (Method == 3 && !eggTinyInput.IsValid)
+            { Error("Enter a Tiny u32 seed as 1 to 8 hexadecimal digits (optional 0x prefix)."); return; }
             if (ivmin0.Value > ivmax0.Value)
                 Error(SETTINGERROR_STR[lindex] + L_H.Text);
             else if (ivmin1.Value > ivmax1.Value)
@@ -1832,13 +1872,12 @@ namespace Pk3DSRNGTool
         // Tools
         private IVRange IVInputer = new IVRange();
         private TinyTimelineTool TTT = new TinyTimelineTool();
-        private TinyIndexTool tinyIndexTool;
         private Horde indexedHorde;
         private uint[] indexedHordeState;
         private bool indexedHordeORAS;
 
         public uint[] TinyIndexInputState => Gen6 && Method == 4
-            ? new[] { ID_Tiny0.Value, ID_Tiny1.Value, ID_Tiny2.Value, ID_Tiny3.Value } : TinySeeds;
+            ? IDTinyState : TinySeeds;
 
         public void ApplyTinyIndexState(TinyIndexResult result)
         {
@@ -1849,8 +1888,7 @@ namespace Pk3DSRNGTool
             indexedHordeORAS = result.IsORAS;
             if (result.Method == TinyIndexMethod.ID)
             {
-                ID_Tiny0.Value = result.State[0]; ID_Tiny1.Value = result.State[1];
-                ID_Tiny2.Value = result.State[2]; ID_Tiny3.Value = result.State[3];
+                idTinyInput.State = result.State;
             }
             if (IsDexNav && result.IsORAS && (result.Method == TinyIndexMethod.DexNavStep || result.Method == TinyIndexMethod.DexNavSearch))
             {
@@ -1982,10 +2020,7 @@ namespace Pk3DSRNGTool
                     return;
                 case "IDSeed":
                     var tiny = (uint[])data;
-                    ID_Tiny0.Value = tiny[0];
-                    ID_Tiny1.Value = tiny[1];
-                    ID_Tiny2.Value = tiny[2];
-                    ID_Tiny3.Value = tiny[3];
+                    idTinyInput.State = tiny;
                     return;
                 case "TTT":
                     TTT.Gen6Tiny = (uint[])data;

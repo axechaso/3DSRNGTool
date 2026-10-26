@@ -53,7 +53,11 @@ namespace Pk3DSRNGTool
         public static string getlocationstr(int locationidx, int ver)
         {
             if (ver < 4)
-                return gen6location[locationidx & 0x1FF] + LocationTable6.TableNow.FirstOrDefault(t => t.Locationidx == locationidx).mark;
+            {
+                var area = LocationTable6.TableNow.FirstOrDefault(t => t.Locationidx == locationidx);
+                if (area is TinyFinderArea6 tfArea) return tfArea.Data.Name + " · " + Translate(tfArea.Data.Terrain);
+                return gen6location[locationidx & 0x1FF] + area.mark;
+            }
             else if (4 < ver && ver < 9)
                 return smlocation[locationidx & 0xFF] + LocationTable7.TableNow.FirstOrDefault(t => t.Locationidx == locationidx)?.mark ?? string.Empty;
             return "-";

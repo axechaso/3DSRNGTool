@@ -135,6 +135,7 @@ namespace Pk3DSRNGTool
         }
         private bool IsORASWild => Program.mainform?.IsORAS == true && new[] { 2, 5, 6, 8 }.Contains(Method.SelectedIndex);
         public bool HasSeed => UseReaderSeed.Checked ? TryGetReaderSeed(out _) : Gen6Tiny.Any(t => t != 0);
+        public uint? ReaderSeed => UseReaderSeed.Checked && TryGetReaderSeed(out uint seed) ? (uint?)seed : null;
         public bool NeedsCalibration { get; private set; }
         public void ImportIndexState(uint[] state)
         {

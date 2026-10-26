@@ -76,10 +76,11 @@ namespace Pk3DSRNGTool
         }
         private uint[] Status
         {
-            get => new[] { St0.Value, St1.Value, St2.Value, St3.Value };
+            get => eggTinyInput?.State ?? new[] { St0.Value, St1.Value, St2.Value, St3.Value };
             set
             {
                 if (value.Length < 4) return;
+                if (eggTinyInput != null) { eggTinyInput.State = value; return; }
                 St0.Value = value[0]; St1.Value = value[1];
                 St2.Value = value[2]; St3.Value = value[3];
             }

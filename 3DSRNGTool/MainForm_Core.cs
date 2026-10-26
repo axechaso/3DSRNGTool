@@ -12,6 +12,7 @@ namespace Pk3DSRNGTool
         #region Gen6 Search
         private void Search6()
         {
+            if (UseTinyFinderWild) { Search6_TinyFinderWild(); return; }
             switch (Method)
             {
                 case 0 when gen6timeline_available && CreateTimeline.Checked:
@@ -184,7 +185,8 @@ namespace Pk3DSRNGTool
 
         private void Search6_ID()
         {
-            var rng = new TinyMT(new uint[] { ID_Tiny0.Value, ID_Tiny1.Value, ID_Tiny2.Value, ID_Tiny3.Value });
+            if (!idTinyInput.IsValid) { FormUtil.Error("Enter a Tiny u32 seed as 1 to 8 hexadecimal digits (optional 0x prefix)."); return; }
+            var rng = new TinyMT(IDTinyState);
             int min = (int)Frame_min.Value;
             int max = (int)Frame_max.Value;
             IDFrames.Clear();

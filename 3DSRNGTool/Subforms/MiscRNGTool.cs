@@ -11,9 +11,15 @@ namespace Pk3DSRNGTool
 {
     public partial class MiscRNGTool : Form
     {
+        private readonly ComboBox tinySource = new ComboBox { Name = "TinySource", DropDownStyle = ComboBoxStyle.DropDownList, Width = 108 };
         public MiscRNGTool()
         {
             InitializeComponent();
+            tinySource.Items.AddRange(new[] { "PokeReader 种子", "时间线状态" });
+            tinySource.Location = new System.Drawing.Point(12, 66);
+            tinySource.SelectedIndex = 0;
+            tinySource.SelectedIndexChanged += (s, e) => TTT.Checked = tinySource.SelectedIndex == 1;
+            RNGInfo.Controls.Add(tinySource);
             UpdateInfo(updategame: true, updateseed: true);
             System.Reflection.PropertyInfo dgvPropertyInfo = typeof(DataGridView).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.SetProperty
                  | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
@@ -656,8 +662,10 @@ namespace Pk3DSRNGTool
             OPower.Visible = RNG.SelectedIndex == 3;
             ShowHideTab(TP_SOS, RNG.SelectedIndex == 1, 2);
             ShowHideTab(TP_SOS2, RNG.SelectedIndex == 1 && Filters.TabPages.Contains(TP_SOS2), 3);
-            TTT.Visible = RNG.SelectedIndex == 3;
-            Seed.Enabled = !TTT.Visible || !TTT.Checked;
+            TTT.Visible = false;
+            tinySource.Visible = RNG.SelectedIndex == 3;
+            label2.Visible = RNG.SelectedIndex != 3;
+            Seed.Enabled = RNG.SelectedIndex != 3 || !TTT.Checked;
             Translate();
         }
 

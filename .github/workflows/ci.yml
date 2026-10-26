@@ -36,6 +36,9 @@ jobs:
           Copy-Item LICENSE upload\3DSRNGTool
           Copy-Item Tests\Gen6\README.md upload\3DSRNGTool\G6-README.md
           Copy-Item Tests\EncounterTables\README.md upload\3DSRNGTool\USUM-README.md
+          Copy-Item licenses upload\3DSRNGTool\licenses -Recurse
+          New-Item -ItemType Directory -Force upload\3DSRNGTool\licenses\TinyFinder | Out-Null
+          Copy-Item ThirdParty\TinyFinder\UPSTREAM.md, ThirdParty\TinyFinder\README.md, ThirdParty\TinyFinder\Notes.md, 'ThirdParty\TinyFinder\MT LISENCE.txt', 'ThirdParty\TinyFinder\TinyMT LICENSE.txt' upload\3DSRNGTool\licenses\TinyFinder
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

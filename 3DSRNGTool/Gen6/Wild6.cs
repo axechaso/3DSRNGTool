@@ -34,6 +34,7 @@ namespace Pk3DSRNGTool
         public byte EncounterRate;
 
         public bool IsORAS;
+        public TinyFinder.WildPrediction IndexedEncounter;
 
         // ORAS v1.4 sub_78D900
         protected override void CheckLeadAbility(ulong rand100)
@@ -48,6 +49,15 @@ namespace Pk3DSRNGTool
 
         private void Prepare(ResultW6 rt)
         {
+            if (IndexedEncounter != null)
+            {
+                slot = 1; rt.Slot = (byte)IndexedEncounter.Slot;
+                rt.Synchronize = IndexedEncounter.Synchronized;
+                rt.Item = IndexedEncounter.Items[0];
+                RNGResult.IsPokemon = IndexedEncounter.Triggered;
+                if (Wildtype == EncounterType.Fishing) Advance(System.Math.Max(0, IndexedEncounter.Delay - 2));
+                return;
+            }
             if (RNGPool.tinystatus == null)
             {
                 rt.Synchronize = RNGPool.TinySynced;
@@ -128,7 +138,16 @@ namespace Pk3DSRNGTool
                 results[i] = new ResultW6();
 
             // Use results from tiny
-            if (Hrt != null)
+            if (IndexedEncounter != null)
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    results[i].Synchronize = IndexedEncounter.Synchronized;
+                    results[i].Item = IndexedEncounter.Items[i];
+                    if (IndexedEncounter.HiddenAbility == i + 1) results[i].Ability = 3;
+                }
+            }
+            else if (Hrt != null)
             {
                 CheckLeadAbility(Hrt.Lead);
                 for (int i = 0; i < 5; i++)
@@ -163,6 +182,7 @@ namespace Pk3DSRNGTool
         {
             //Species
             rt.Species = (short)(SpecForm[slot] & 0x7FF);
+            rt.Forme = (byte)(SpecForm[slot] >> 11);
 
             //Level
             rt.Level = SlotLevel[slot];

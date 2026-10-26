@@ -9,12 +9,18 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EncounterTables.Tests", "Te
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gen6.Tests", "Tests\Gen6\Gen6.Tests.csproj", "{68673D21-EF82-4938-942E-C1448F5AF900}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TinyFinder.Embedded", "ThirdParty\TinyFinder\TinyFinder\TinyFinder.Embedded.csproj", "{0A1072E0-FDC2-4F0D-A44B-CA4A36382987}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+        {0A1072E0-FDC2-4F0D-A44B-CA4A36382987}.Debug|Any CPU.ActiveCfg = Debug|AnyCPU
+        {0A1072E0-FDC2-4F0D-A44B-CA4A36382987}.Debug|Any CPU.Build.0 = Debug|AnyCPU
+        {0A1072E0-FDC2-4F0D-A44B-CA4A36382987}.Release|Any CPU.ActiveCfg = Release|AnyCPU
+        {0A1072E0-FDC2-4F0D-A44B-CA4A36382987}.Release|Any CPU.Build.0 = Release|AnyCPU
 		{68673D21-EF82-4938-942E-C1448F5AF900}.Debug|Any CPU.ActiveCfg = Debug|AnyCPU
 		{68673D21-EF82-4938-942E-C1448F5AF900}.Debug|Any CPU.Build.0 = Debug|AnyCPU
 		{68673D21-EF82-4938-942E-C1448F5AF900}.Release|Any CPU.ActiveCfg = Release|AnyCPU

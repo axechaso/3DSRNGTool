@@ -15,7 +15,7 @@ namespace Pk3DSRNGTool
         private readonly MainForm main;
         private readonly HexMaskedTextBox[] words = Enumerable.Range(0, 4).Select(i => new HexMaskedTextBox { Width = 85 }).ToArray();
         private readonly HexMaskedTextBox seed = new HexMaskedTextBox { Width = 85 };
-        private readonly ComboBox source = Combo("四段状态 / State", "初始种子 / Seed", "模拟器 RTC / UTC");
+        private readonly ComboBox source = Combo("四段状态 / State", "PokeReader 种子 / Seed", "模拟器 RTC / UTC");
         private readonly DateTimePicker rtc = new DateTimePicker { Format = DateTimePickerFormat.Custom, CustomFormat = "yyyy-MM-dd HH:mm:ss", Width = 175, Value = new DateTime(2026, 1, 1) };
         private readonly NumericUpDown boot = Number(0, 100, 0);
         private readonly ComboBox method = Combo("普通野生 / Wild", "朋友原野 / Friend Safari", "蜂蜜群战 / Horde", "走路群战 / Step Horde",

@@ -53,6 +53,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Controls\Frame.cs" />
+    <Compile Include="Controls\TinySeedInputAdapter.cs" />
+    <Compile Include="MainForm_TinyFinder.cs" />
+    <Compile Include="MainForm_Gen6Wild.cs" />
+    <Compile Include="Gen6\Gen6Encounter\TinyFinderArea6.cs" />
     <Compile Include="Controls\Frame_ID.cs" />
     <Compile Include="Controls\Frame_Misc.cs" />
     <Compile Include="Controls\Frame_Seed.cs" />
@@ -382,6 +386,12 @@
     <None Include="Resources\pic\Buttons\Sync.png" />
     <None Include="Resources\pic\Buttons\Open.png" />
     <None Include="Resources\pic\Buttons\Reset.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ThirdParty\TinyFinder\TinyFinder\TinyFinder.Embedded.csproj">
+      <Project>{0A1072E0-FDC2-4F0D-A44B-CA4A36382987}</Project>
+      <Name>TinyFinder.Embedded</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
