@@ -5,6 +5,9 @@
 - 同步发行版1.0.6源码文件，强制使用.NET Framework 4.5.2，若使用更高版本可能导致UI相关问题
 - 软件语言改为默认简体中文
 - 将lang_zh.txt同步lang_en.txt修复由中文切回英文再切回中文时，部分文本还是英文的问题
+- 修正究极日月阿卡拉岛郊外、11号道路和波尼花园的遭遇槽位，分开处理昼夜与版本反转，避免预测物种与实际遭遇不符
+
+构建仍使用 .NET Framework 4.5.2。遭遇表回归检查和本地构建步骤见 [Tests/EncounterTables](Tests/EncounterTables/README.md)。GitHub Actions 会构建程序、运行检查并提供可下载的 `3DSRNGTool` 压缩包。
 
 # 以下是原说明文档
 

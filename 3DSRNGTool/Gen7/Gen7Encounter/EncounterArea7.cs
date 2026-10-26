@@ -16,7 +16,8 @@ namespace Pk3DSRNGTool
         public byte LevelMinMoon => (byte)(LevelMin + lvldiff);
         public byte LevelMaxMoon => (byte)(LevelMax + lvldiff);
 
-        public bool Reverse; // true if moon/night have more species
+        public bool ReverseDayNight; // The base table contains nighttime species.
+        public bool ReverseVersion; // The base table contains Moon-exclusive species.
         public bool Raining;
 
         public override int[] getSpecies(int ver, bool IsNight) => getSpecies(ver == 6 || ver == 8, IsNight);
@@ -29,8 +30,8 @@ namespace Pk3DSRNGTool
 
         protected virtual int[] getSpecies(bool IsMoon, bool IsNight)
         {
-            IsNight ^= Reverse;
-            IsMoon ^= Reverse;
+            IsNight ^= ReverseDayNight;
+            IsMoon ^= ReverseVersion;
             int[] table = (int[])Species.Clone();
             for (int i = 1; i < table.Length; i++)
             {
@@ -91,7 +92,7 @@ namespace Pk3DSRNGTool
             new byte[]{1,2,3,4,5,6,7,6,8,8}, //41
             new byte[]{1,2,3,3,4,4,5,6,7,7}, //42
             new byte[]{1,2,3,4,3,4,5,6,6,7}, //43
-            new byte[]{1,2,3,4,5,6,7,8,9,10}, //44 oops
+            new byte[]{1,2,3,4,5,6,7,8,9,10}, //44: all ten slots are listed explicitly
             new byte[]{1,2,1,2,3,4,5,5,6,6}, //45
             new byte[]{1,2,3,4,5,5,6,6,7,7}, //46
             new byte[]{1,2,3,3,4,5,5,6,7,7}, //47
@@ -139,6 +140,7 @@ namespace Pk3DSRNGTool
             {296, 096}, {096, 296}, // Drowzee <-> Makuhita
             {297, 097}, {097, 297},
             {447, 427},             // Riolu -> Buneary
+            {177, 278},             // Natu -> Wingull (Akala Outskirts)
             // Reverse from here
             {200, 743},             // Misdreavus -> Ribombee
         };
@@ -158,8 +160,7 @@ namespace Pk3DSRNGTool
         protected override int[] getSpecies(bool IsMoon, bool IsNight)
         {
             var table = base.getSpecies(IsMoon, IsNight);
-            IsNight ^= Reverse;
-            IsMoon ^= Reverse;
+            IsNight ^= ReverseDayNight;
             for (int i = 1; i < table.Length; i++)
                 if (IsNight)
                 {

@@ -384,7 +384,7 @@ namespace Pk3DSRNGTool
                 Correction = 16,
                 LevelMin = 25,
                 Species = new[] {21,022,774,374,227,173,132},
-                Reverse = true, // Cleffa at night
+                ReverseDayNight = true, // Cleffa at night
             },
             new EncounterArea_SM
             {
@@ -507,7 +507,7 @@ namespace Pk3DSRNGTool
                 Location = 146, idx = 2, mark="洞窟",
                 LevelMin = 42,
                 Species = new[] {22,042,361,359,780,215},
-                Reverse = true,
+                ReverseVersion = true,
             },
             new EncounterArea_SM
             {
@@ -1023,7 +1023,7 @@ namespace Pk3DSRNGTool
                 Correction = 28,
                 LevelMin = 27,
                 Species = new[] {37,605,774,774,173,374,173,132,132},
-                Reverse = true, // Cleffa at night
+                ReverseDayNight = true, // Cleffa at night
             },
             new EncounterArea_USUM
             {
@@ -1031,14 +1031,14 @@ namespace Pk3DSRNGTool
                 Correction = 28,
                 LevelMin = 27,
                 Species = new[] {35,605,173,022,774,374,227,239,132},
-                Reverse = true, // Cleffa at night
+                ReverseDayNight = true, // Cleffa at night
             },
             new EncounterArea_USUM
             {
                 Location = 108, //11
                 Correction = 12,
                 LevelMin = 26,
-                Species = new[] {12,735,732,047,775,674,166},
+                Species = new[] {12,775,732,047,775,674,166}, // Komala occupies the first 20% slot.
             },
             new EncounterArea_USUM
             {
@@ -1143,7 +1143,7 @@ namespace Pk3DSRNGTool
                 Correction = 08,
                 LevelMin = 47,
                 Species = new[] {22,042,362,359,780,215},
-                Reverse = true,
+                ReverseVersion = true,
             },
             new EncounterArea_USUM
             {
@@ -1158,7 +1158,7 @@ namespace Pk3DSRNGTool
                 Correction = 07, NPC = 2,
                 LevelMin = 48,
                 Species = new[] {22,042,362,359,780,215},
-                Reverse = true,
+                ReverseVersion = true,
             },
             new EncounterArea_USUM
             {
@@ -1285,8 +1285,8 @@ namespace Pk3DSRNGTool
                 Location = 156, // Meadow
                 Correction = 6,
                 LevelMin = 54,
-                Species = new[] {39,743,546,670,741,200,166,166},
-                Reverse = true,
+                Species = new[] {39,743,546,670,741,200,546,546},
+                ReverseDayNight = true, // Misdreavus at night; Cottonee remains the Ultra Sun species.
             },
             new EncounterArea_USUM
             {
