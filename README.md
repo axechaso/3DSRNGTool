@@ -6,6 +6,7 @@
 - 软件语言改为默认简体中文
 - 将lang_zh.txt同步lang_en.txt修复由中文切回英文再切回中文时，部分文本还是英文的问题
 - 修正究极日月阿卡拉岛郊外、11号道路和波尼花园的遭遇槽位，分开处理昼夜与版本反转，避免预测物种与实际遭遇不符
+- 加入参考 TinyFinder 的 G6 TinyMT 索引搜索，支持 12 种方式、后台搜索、筛选和状态回填；修复 G6 时间线的校准保留、朋友原野概率、帧对齐和长延迟问题，详见 [使用说明与验证范围](Tests/Gen6/README.md)
 
 构建仍使用 .NET Framework 4.5.2。遭遇表回归检查和本地构建步骤见 [Tests/EncounterTables](Tests/EncounterTables/README.md)。GitHub Actions 会构建程序、运行检查并提供可下载的 `3DSRNGTool` 压缩包。
 

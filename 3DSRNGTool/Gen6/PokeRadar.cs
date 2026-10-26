@@ -24,16 +24,16 @@ namespace Pk3DSRNGTool
         }
 
         // RNG
-        private static TinyMT rng;
-        private static byte Rand(ulong n) => (byte)((rng.Nextuint() * n) >> 32);
-        public PokeRadar(uint[] src, int PKMNUM, int Chainlength, bool Boost)
+        private readonly TinyMT rng;
+        private byte Rand(ulong n) => (byte)((rng.Nextuint() * n) >> 32);
+        public PokeRadar(uint[] src, int PKMNUM, int Chainlength, bool Boost, bool currentMusic = false)
         {
             rng = new TinyMT(src);
 
             for (int i = 3 * PKMNUM; i > 0; i--)
                 rng.Next();
 
-            music = Rand(100);
+            music = currentMusic ? (byte)(rng.temper() * 100ul >> 32) : Rand(100);
             Boost &= music >= 50;
 
             // 4 Pokemon patches

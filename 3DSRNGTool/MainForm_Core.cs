@@ -14,8 +14,8 @@ namespace Pk3DSRNGTool
         {
             switch (Method)
             {
-                case 0 when CreateTimeline.Checked:
-                case 2 when CreateTimeline.Checked:
+                case 0 when gen6timeline_available && CreateTimeline.Checked:
+                case 2 when gen6timeline_available && CreateTimeline.Checked:
                     Search6_Timeline(); return;
                 case 2 when IsHorde:
                     Search6_Horde(); return;
@@ -56,18 +56,25 @@ namespace Pk3DSRNGTool
 
         private void Search6_Timeline()
         {
-            if (!TTT.HasSeed)
+            if (!TTT.HasSeed || TTT.NeedsCalibration)
             {
                 FormUtil.Error("Please Calibrate Timeline");
                 return;
             }
 
-            var timeline = TTT.gettimeline();
-            int min = Math.Max((int)Frame_min.Value, timeline.Startingframe + 2);
-            int max = (int)TimeSpan.Value * 60 + min;
-            timeline.Maxframe = max;
-            timeline.Generate(ForMainForm: true);
-            int listlength = timeline.TinyLength;
+            TinyTimeline timeline;
+            int min, max;
+            try
+            {
+                UpdateTTTMethod();
+                timeline = TTT.gettimeline(ForMainForm: true);
+                min = Math.Max((int)Frame_min.Value, timeline.Startingframe + 2);
+                max = (int)Math.Min(FuncUtil.MAXFRAME, (long)TimeSpan.Value * 60 + min);
+                timeline.Maxframe = max;
+                timeline.Generate(ForMainForm: true);
+            }
+            catch (ArgumentException ex) { FormUtil.Error(ex.Message); return; }
+            catch (InvalidOperationException ex) { FormUtil.Error(ex.Message); return; }
 
             // Prepare
             var rng = new MersenneTwister(Seed.Value);
@@ -76,28 +83,26 @@ namespace Pk3DSRNGTool
             getsetting(rng);
             Frame.standard = (int)(TargetFrame.Value - min);
 
-            for (int i = 0; i < listlength; i++)
+            int currentMTFrame = min;
+            foreach (var entry in timeline.FramesBetween(min, max))
             {
-                var tinyframe = timeline.results[i];
-                if (tinyframe.unhitable)
-                    continue;
-                if (tinyframe.framemax < min)
-                    continue;
-                RNGPool.TinySynced = tinyframe.sync == true; // For stationary
-                for (int j = tinyframe.framemin + 2; j <= tinyframe.framemax; j += 2, RNGPool.AddNext(rng), RNGPool.AddNext(rng))
+                int j = entry.Frame;
+                var tinyframe = entry.Span;
+                while (currentMTFrame < j)
                 {
-                    while (j < min)
-                        j += 2;
-                    RNGPool.tinystatus = tinyframe.tinystate.Clone();
-                    RNGPool.tinystatus.Currentframe = j;
-                    RNGResult result = RNGPool.Generate6();
-                    if (!filter.CheckResult(result))
-                        continue;
-                    Frames.Add(new Frame(result, frame: j, time: j - min));
-                    Frames.Last()._tinystate = new PRNGState(tinyframe.tinystate.Status);
-                    if (Frames.Count > MAX_RESULTS_NUM)
-                        return;
+                    RNGPool.AddNext(rng);
+                    currentMTFrame++;
                 }
+                RNGPool.TinySynced = tinyframe.sync == true; // For stationary
+                RNGPool.tinystatus = tinyframe.tinystate.Clone();
+                RNGPool.tinystatus.Currentframe = j;
+                RNGResult result = RNGPool.Generate6();
+                if (!filter.CheckResult(result))
+                    continue;
+                Frames.Add(new Frame(result, frame: j, time: j - min));
+                Frames.Last()._tinystate = new PRNGState(tinyframe.tinystate.Status);
+                if (Frames.Count > MAX_RESULTS_NUM)
+                    return;
             }
         }
 
@@ -116,7 +121,7 @@ namespace Pk3DSRNGTool
             // Prepare
             if (FullInfoHorde)
             {
-                RNGPool.horde = new Horde(TTT.Gen6Tiny, (int)TTT.Parameter1.Value, IsORAS);
+                RNGPool.horde = HasIndexedHorde ? indexedHorde : new Horde(TTT.Gen6Tiny, (int)TTT.Parameter1.Value, IsORAS);
                 SlotSpecies.SelectedValue = slotspecies[RNGPool.horde.Slot - 1];
             }
             if (SlotSpecies.SelectedIndex > 0)

@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System;
 using System.Collections.Generic;
 using Pk3DSRNGTool.RNG;
 using Pk3DSRNGTool.Core;
@@ -27,6 +28,8 @@ namespace Pk3DSRNGTool
         };
 
         public uint[] Status => Tinyrng.status;
+        public bool HasCalls => list.Count != 0;
+        public IEnumerable<KeyValuePair<int, int>> ScheduledCalls => list.AsEnumerable().Reverse().Select(c => new KeyValuePair<int, int>(c.frame, c.type));
         public void Next() => Tinyrng.Next();
         public uint Nextuint() => Tinyrng.Nextuint();
         public byte Rand(int n) => (byte)((Tinyrng.Nextuint() * (ulong)n) >> 32);
@@ -35,6 +38,7 @@ namespace Pk3DSRNGTool
         public void Addfront(int f, int t) => list.Add(new TinyCall(f, t));
         public void Add(int f, int t)
         {
+            if (t < 0 || t > 7) throw new ArgumentOutOfRangeException(nameof(t));
             list.Add(new TinyCall(f, t));
             if (list.Count > 1)
                 list = list.OrderByDescending(e => e.frame).ThenBy(e => e.type).ToList();
@@ -43,8 +47,9 @@ namespace Pk3DSRNGTool
 
         public void time_elapse(int Delay)
         {
-            int Target = Currentframe + Delay;
-            while (list.Last().frame < Target)
+            if (Delay < 0) throw new ArgumentOutOfRangeException(nameof(Delay));
+            int Target = checked(Currentframe + Delay);
+            while (list.Count != 0 && list.Last().frame < Target)
                 AdvancetoNextCall();
             Currentframe = Target;
         }
@@ -105,7 +110,7 @@ namespace Pk3DSRNGTool
     {
         private const int Buffer = 100;
 
-        public TinyTimeline(uint[] Seeds) { TimelineStatus = new TinyStatus(Seeds); }
+        public TinyTimeline(uint[] Seeds) { initialStatus = new TinyStatus(Seeds); }
         public int Startingframe;
         public int Maxframe;
         public byte Method;
@@ -117,14 +122,15 @@ namespace Pk3DSRNGTool
         public int ChainLength => P2;
         public bool Boost;
         public bool IsORAS;
-        public void Add(int f, int t) => TimelineStatus.Add(f, t);
+        public void Add(int f, int t) => initialStatus.Add(f, t);
 
         public List<Frame_Tiny> results;
         public int TinyLength => results.Count;
 
         // For timeline splitting
         public int Delay;
-        public int CryFrame;
+        public int CryFrame = -1;
+        private readonly TinyStatus initialStatus;
         private TinyStatus TimelineStatus;
         private List<TinyTimeSpan> ReferenceList;
 
@@ -159,20 +165,32 @@ namespace Pk3DSRNGTool
 
         public void Generate(bool splittimeline = false, bool ForMainForm = false)
         {
+            if (!initialStatus.HasCalls)
+                throw new InvalidOperationException("Please calibrate at least one TinyMT event.");
+            if (Maxframe < Startingframe || Delay < 0 || CryFrame > Delay ||
+                (Method == 6 && (splittimeline || ForMainForm) && Delay < 228))
+                throw new ArgumentException("Invalid timeline range or encounter delay.");
+            // Keep the calibrated event queue intact: searching a second time must be identical.
+            TimelineStatus = initialStatus.Clone();
             TimelineStatus.Currentframe = Startingframe - 2;
             int i = 0;
             ReferenceList = new List<TinyTimeSpan>();
             while (TimelineStatus.Currentframe <= Maxframe)
                 ReferenceList.Add(getNewSpan(i++));
             int imax = i + Buffer;
-            for (; i < imax;)
+            int horizon = checked(Maxframe + Delay + 600);
+            // A fixed number of calls is insufficient with frequent NPC calls or long delays.
+            while (i < imax || TimelineStatus.Currentframe <= horizon)
                 ReferenceList.Add(getNewSpan(i++));
             if (splittimeline || ForMainForm && (Method < 2 || Method == 10))
                 SplitTimeline(); // Consider delay effect
             else
-                results = ReferenceList.Select(t => t.Clone()).ToList();
+                results = ReferenceList.Where(t => t.framemin < Maxframe).Select(t => t.Clone()).ToList();
             if (ForMainForm && 1 < Method && Method < 9)
+            {
+                ReferenceList.Clear();
                 return;
+            }
             switch (Method)
             {
                 case 0: MarkSync(true); break;
@@ -187,6 +205,19 @@ namespace Pk3DSRNGTool
                 case 10: MarkSync(true); break;
             }
             ReferenceList.Clear();
+        }
+
+        // Use the same clipping/phase rule in the main search and in regression checks.
+        public IEnumerable<TinyTimelineFrame> FramesBetween(int min, int max)
+        {
+            foreach (var span in results)
+            {
+                int first = Math.Max(span.framemin + 2, min);
+                if ((first - span.framemin) % 2 != 0) first++;
+                int last = Math.Min(span.framemax, max);
+                for (int frame = first; frame <= last; frame += 2)
+                    yield return new TinyTimelineFrame { Frame = frame, Span = span };
+            }
         }
 
         private int getidxAfterDelay(TinyStatus src, int Current, int startindex)
@@ -297,7 +328,7 @@ namespace Pk3DSRNGTool
         private void MarkEncounter(bool FS = false, bool Fishing = false, bool Check = true)
         {
             Frame_Tiny.thershold = (byte)(!Check ? 0 : EncounterRate);
-            byte SlotType = (byte)(FS ? SlotNum + 47 : Fishing ? 3 : 2);
+            byte SlotType = (byte)(FS ? SlotNum + 52 : Fishing ? 3 : 2);
             int idxmax = ReferenceList.Count - 6;
             results = results.TakeWhile(r => r.HitIndex < idxmax).ToList();  // Remove tail data
             foreach (var rt in results)
@@ -338,5 +369,11 @@ namespace Pk3DSRNGTool
             foreach (var rt in results)
                 rt.radar = new PokeRadar(rt.tinystate.Status, PartySize, ChainLength, Boost);
         }
+    }
+
+    public sealed class TinyTimelineFrame
+    {
+        public int Frame { get; set; }
+        public Frame_Tiny Span { get; set; }
     }
 }

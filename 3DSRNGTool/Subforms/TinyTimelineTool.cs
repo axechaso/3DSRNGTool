@@ -9,11 +9,12 @@ namespace Pk3DSRNGTool
     public partial class TinyTimelineTool : Form
     {
         #region Basic UI
-        public static readonly int[] typelist = { -1, 0, 1, 3, 4, 5, 6, 7, };
+        public static readonly int[] typelist = { -1, 0, 1, 2, 3, 4, 5, 6, 7, };
         private int[] CurrentTypes;
         private const string FRAME = "Frame";
         private const string TYPE = "Type";
-        public static readonly string[] typestrlist = { "-", "Blink(+2)", "Blink(+1)", "Fidget", "Soaring", "XY ID", "Running NPC", "G/K" };
+        public static readonly string[] typestrlist = { "-", "Blink(+2)", "Blink(+1)", "Blink(short)", "Fidget", "Soaring", "XY ID", "Running NPC", "G/K" };
+        private bool translating;
         private IEnumerable<ComboBox> getTypeList()
         {
             for (int i = 1; i <= TypeNum.Maximum; i++)
@@ -42,20 +43,27 @@ namespace Pk3DSRNGTool
         public void Translate()
         {
             this.TranslateInterface();
+            int selected = Method.SelectedIndex;
+            translating = true;
             Method.Items.Clear();
             Method.Items.AddRange(methodlist.Select(s => StringItem.Translate(s)).ToArray());
-            Method.SelectedIndex = 0;
+            Method.SelectedIndex = Math.Max(0, selected);
+            translating = false;
+            if (selected < 0) Method_SelectedIndexChanged(null, EventArgs.Empty);
         }
         public void UpdateTypeComboBox(params int[] type)
         {
+            if (type.Contains(0) || type.Contains(1)) type = type.Concat(new[] { 2 }).Distinct().ToArray();
+            if (CurrentTypes != null && CurrentTypes.SequenceEqual(type)) return;
             CurrentTypes = (int[])type.Clone();
             var List = typelist.Select((t, i) => new ComboItem(typestrlist[i], t)).Where(t => t.Value == -1 || type.Contains(t.Value));
             foreach (var c in getTypeList())
             {
+                int previous = c.SelectedValue is int ? (int)c.SelectedValue : -1;
                 c.DisplayMember = "Text";
                 c.ValueMember = "Value";
                 c.DataSource = new BindingSource(List.Skip(c == Type1 ? 1 : 0), null);
-                c.SelectedIndex = 0;
+                c.SelectedValue = type.Contains(previous) ? previous : c == Type1 ? type[0] : -1;
             }
         }
         private void TinyTimelineTool_FormClosing(object sender, FormClosingEventArgs e)
@@ -69,13 +77,21 @@ namespace Pk3DSRNGTool
             get => new[] { tiny0.Value, tiny1.Value, tiny2.Value, tiny3.Value };
             set
             {
-                if (value.Length < 4) return;
+                if (value == null || value.Length != 4) return;
                 tiny0.Value = value[0]; tiny1.Value = value[1];
                 tiny2.Value = value[2]; tiny3.Value = value[3];
             }
         }
-        private bool IsORASWild => Program.mainform.IsORAS && new[] { 2, 5, 6, 8 }.Contains(Method.SelectedIndex);
+        private bool IsORASWild => Program.mainform?.IsORAS == true && new[] { 2, 5, 6, 8 }.Contains(Method.SelectedIndex);
         public bool HasSeed => Gen6Tiny.Any(t => t != 0);
+        public bool NeedsCalibration { get; private set; }
+        public void ImportIndexState(uint[] state)
+        {
+            Gen6Tiny = state;
+            NeedsCalibration = true;
+            list.Clear();
+            MainDGV.DataSource = null;
+        }
         private void Update_Click(object sender, EventArgs e)
         {
             if (!NTRHelper.ntrclient?.Connected ?? true)
@@ -95,9 +111,10 @@ namespace Pk3DSRNGTool
             else if (SkipList.IndexOf(Curr) > -1)  // Skip
                 SkipList[SkipList.IndexOf(Curr)] = Next;
             else if (!CurrentTypes.Contains(type)) // Not in typelist
-                FormUtil.Error($"Invalid Advance Type: {typestrlist[type]}");
+                FormUtil.Error($"Invalid Advance Type: {typestrlist[Array.IndexOf(typelist, type)]}");
             else
             {
+                NeedsCalibration = false;
                 SkipList.Add(Next);
                 ((NumericUpDown)Controls.Find(FRAME + SkipList.Count.ToString(), true).FirstOrDefault()).Value = Curr;
                 ((ComboBox)Controls.Find(TYPE + SkipList.Count.ToString(), true).FirstOrDefault()).SelectedValue = type;
@@ -129,7 +146,7 @@ namespace Pk3DSRNGTool
         {
             B_Stop.Visible = false;
             B_Cali.Visible = true;
-            NTRHelper.ntrclient.DisableBP();
+            NTRHelper.ntrclient?.DisableBP();
             SkipList.Clear();
         }
         private void TypeNum_ValueChanged(object sender, EventArgs e)
@@ -154,8 +171,11 @@ namespace Pk3DSRNGTool
             list.Clear();
             list = new List<Frame_Tiny>();
             Frame_Tiny.Startingframe = (int)Frame1.Value;
-            var state = gettimeline();
-            state.Generate(splittimeline: ConsiderDelay.Checked);
+            TinyTimeline state;
+            try { state = gettimeline(); state.Generate(splittimeline: ConsiderDelay.Checked); }
+            catch (ArgumentException ex) { FormUtil.Error(ex.Message); return; }
+            catch (InvalidOperationException ex) { FormUtil.Error(ex.Message); return; }
+            NeedsCalibration = false;
             list = state.results;
             MainDGV.DataSource = list;
             MainDGV.CurrentCell = null;
@@ -172,17 +192,18 @@ namespace Pk3DSRNGTool
             Method_Changed();
         }
 
-        public TinyTimeline gettimeline()
+        public TinyTimeline gettimeline(bool ForMainForm = false)
         {
+            bool considerDelay = ForMainForm || ConsiderDelay.Checked;
             var line = new TinyTimeline(Gen6Tiny)
             {
                 Startingframe = (int)Frame1.Value,
                 Maxframe = (int)TargetFrame.Value + 5000,
-                CryFrame = Cry.Checked ? (int)CryFrame.Value : -1,
-                Delay = ConsiderDelay.Checked ? (int)Delay.Value : 0,
+                CryFrame = considerDelay && Cry.Checked ? (int)CryFrame.Value : -1,
+                Delay = considerDelay ? (int)Delay.Value : 0,
                 Method = (byte)Method.SelectedIndex,
                 P1 = (int)Parameter1.Value,
-                P2 = Parameter2.Visible ? (int)Parameter2.Value : 0,
+                P2 = (int)Parameter2.Value,
                 IsORAS = IsORASWild,
                 Boost = Boost.Checked,
             };
@@ -216,13 +237,17 @@ namespace Pk3DSRNGTool
 
         private void SetAsCurrent_Click(object sender, EventArgs e)
         {
-            try
+            var selected = MainDGV.CurrentRow?.DataBoundItem as Frame_Tiny;
+            if (selected == null) return;
+            Gen6Tiny = selected.tinystate.Status;
+            var calls = selected.tinystate.ScheduledCalls.ToArray();
+            TypeNum.Value = calls.Length;
+            var frames = getFrameList().ToArray();
+            var types = getTypeList().ToArray();
+            for (int i = 0; i < calls.Length; i++)
             {
-                var seed = (string)MainDGV.CurrentRow.Cells["dgv_state"].Value;
-                Gen6Tiny = FuncUtil.SeedStr2Array(seed) ?? Gen6Tiny;
-            }
-            catch (NullReferenceException)
-            {
+                frames[i].Value = calls[i].Key;
+                types[i].SelectedValue = calls[i].Value;
             }
         }
 
@@ -258,6 +283,7 @@ namespace Pk3DSRNGTool
 
         private void Method_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if (translating || Method.SelectedIndex < 0) return;
             Boost.Visible =
             L_PartySize.Visible = L_SlotNum.Visible = L_Rate.Visible = L_Length.Visible = false;
             ConsiderDelay.Enabled = Delay.Enabled = true;
@@ -304,6 +330,7 @@ namespace Pk3DSRNGTool
                 case 6: // Rock Smash
                     UpdateTypeComboBox(0, 1);
                     ConsiderDelay.Checked = true;
+                    Delay.Value = 276;
                     break;
                 case 7: // Cave Shadow
                     TypeNum.Value = 2;
@@ -331,6 +358,14 @@ namespace Pk3DSRNGTool
                     ConsiderDelay.Checked = true;
                     break;
             }
+            bool party = new[] { 1, 2, 4, 5, 10 }.Contains(Method.SelectedIndex);
+            bool safari = Method.SelectedIndex == 3;
+            Parameter1.Maximum = safari ? 3 : 6;
+            Parameter1.Minimum = safari ? 2 : 1;
+            if (party || safari) Parameter1.Value = party ? 6 : 3;
+            Parameter1.Visible = party || safari;
+            Parameter2.Maximum = Method.SelectedIndex == 4 ? 255 : 100;
+            Parameter2.Visible = new[] { 3, 4, 5, 8 }.Contains(Method.SelectedIndex);
         }
 
         private void MainDGV_CellMouseEnter(object sender, DataGridViewCellEventArgs e)
@@ -357,31 +392,19 @@ namespace Pk3DSRNGTool
 
         private void L_PartySize_VisibleChanged(object sender, EventArgs e)
         {
-            if (Parameter1.Visible = L_PartySize.Visible)
-            {
-                Parameter1.Maximum = 6;
-                Parameter1.Minimum = 1;
-                Parameter1.Value = 6;
-            }
+            Parameter1.Visible = L_PartySize.Visible || L_SlotNum.Visible;
         }
         private void L_SlotNum_VisibleChanged(object sender, EventArgs e)
         {
-            if (Parameter1.Visible = L_SlotNum.Visible)
-            {
-                Parameter1.Maximum = 3;
-                Parameter1.Minimum = 2;
-                Parameter1.Value = 3;
-            }
+            Parameter1.Visible = L_PartySize.Visible || L_SlotNum.Visible;
         }
         private void L_Rate_VisibleChanged(object sender, EventArgs e)
         {
-            if (Parameter2.Visible = L_Rate.Visible)
-                Parameter2.Maximum = 99;
+            Parameter2.Visible = L_Rate.Visible || L_Length.Visible;
         }
         private void L_Length_VisibleChanged(object sender, EventArgs e)
         {
-            if (Parameter2.Visible = L_Length.Visible)
-                Parameter2.Maximum = 255;
+            Parameter2.Visible = L_Rate.Visible || L_Length.Visible;
         }
     }
 }

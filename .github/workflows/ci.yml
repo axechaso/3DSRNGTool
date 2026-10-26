@@ -26,11 +26,15 @@ jobs:
       - name: Check encounter tables
         run: .\Tests\EncounterTables\bin\Release\EncounterTables.Tests.exe
 
+      - name: Check Gen6 timeline and TinyMT index predictions
+        run: .\Tests\Gen6\bin\Release\Gen6.Tests.exe
+
       - name: Package 3DSRNGTool
         run: |
           New-Item -ItemType Directory -Force upload\3DSRNGTool | Out-Null
           Copy-Item 3DSRNGTool\bin\Release\* upload\3DSRNGTool -Exclude *.pdb
           Copy-Item LICENSE upload\3DSRNGTool
+          Copy-Item Tests\Gen6\README.md upload\3DSRNGTool\G6-README.md
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

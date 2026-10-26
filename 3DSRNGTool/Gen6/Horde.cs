@@ -21,8 +21,13 @@ namespace Pk3DSRNGTool
              + "   HA Position: " + (HA == 0 ? StringItem.NONE_STR[StringItem.language] : HA.ToString());
 
         // RNG
-        private static TinyMT rng;
-        private static byte Rand(ulong n) => (byte)((rng.Nextuint() * n) >> 32);
+        private readonly TinyMT rng;
+        private byte Rand(ulong n) => (byte)((rng.Nextuint() * n) >> 32);
+        internal Horde(byte lead, byte slot, byte ha, byte[] flutes, byte[] items)
+        {
+            Lead = lead; Slot = slot; HA = ha;
+            FluteBoosts = (byte[])flutes.Clone(); HeldItems = (byte[])items.Clone();
+        }
         public Horde(uint[] src, int PKMNUM, bool IsORAS)
         {
             rng = new TinyMT(src);

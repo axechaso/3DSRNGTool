@@ -28,7 +28,7 @@ namespace Pk3DSRNGTool
         public char Sync => sync ?? horde?.Sync ?? rand < 0x80000000 ? 'O' : 'X';
         public byte Slot => slot ?? horde?.Slot ?? Core.WildRNG.getSlot(Rand100, 2);
         public string Encounter => enctr < thershold || thershold == 1 ? enctr.ToString() : "X";
-        public string HA => horde?.HA == 0 ? "-" : horde.HA.ToString();
+        public string HA => horde == null || horde.HA == 0 ? "-" : horde.HA.ToString();
         public string Item => horde?.ItemString ?? StringItem.helditemStr[item];
         public string Flute => horde?.FluteString ?? flute.ToString();
         public char Music => radar?.Music ?? '-';

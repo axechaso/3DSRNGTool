@@ -25,7 +25,8 @@ namespace Pk3DSRNGTool
         private bool IsBank => Method == 0 && ((FormPM as PKM6)?.Bank ?? false);
         private bool IsPelago => Method == 0 && ((FormPM as PKM7)?.IsPelago ?? false);
         private bool IsHorde => Method == 2 && (FormPM as PKMW6)?.Type == EncounterType.Horde;
-        private bool FullInfoHorde => IsHorde && TTT.HasSeed && TTT.Method.SelectedIndex == 2; // all info of Horde is known
+        private bool HasIndexedHorde => indexedHorde != null && indexedHordeORAS == IsORAS && indexedHordeState.SequenceEqual(TTT.Gen6Tiny);
+        private bool FullInfoHorde => IsHorde && (HasIndexedHorde || TTT.HasSeed && !TTT.NeedsCalibration && TTT.Method.SelectedIndex == 2);
         private bool Gen6 => Ver < 5;
         public bool IsORAS => Ver == 2 || Ver == 3;
         private bool IsDexNav => (FormPM as PKMW6)?.Type == EncounterType.DexNav;
@@ -62,6 +63,13 @@ namespace Pk3DSRNGTool
         public MainForm()
         {
             InitializeComponent();
+            var tinyIndexMenu = new ToolStripMenuItem("G6 TinyMT 索引搜索 (TinyFinder)");
+            tinyIndexMenu.Click += (s, e) =>
+            {
+                if (tinyIndexTool == null || tinyIndexTool.IsDisposed) tinyIndexTool = new TinyIndexTool(this);
+                tinyIndexTool.Show(this); tinyIndexTool.Focus();
+            };
+            M_Tool.DropDownItems.Insert(4, tinyIndexMenu);
         }
 
         #region Form Loading
@@ -1824,6 +1832,33 @@ namespace Pk3DSRNGTool
         // Tools
         private IVRange IVInputer = new IVRange();
         private TinyTimelineTool TTT = new TinyTimelineTool();
+        private TinyIndexTool tinyIndexTool;
+        private Horde indexedHorde;
+        private uint[] indexedHordeState;
+        private bool indexedHordeORAS;
+
+        public uint[] TinyIndexInputState => Gen6 && Method == 4
+            ? new[] { ID_Tiny0.Value, ID_Tiny1.Value, ID_Tiny2.Value, ID_Tiny3.Value } : TinySeeds;
+
+        public void ApplyTinyIndexState(TinyIndexResult result)
+        {
+            TTT.ImportIndexState(result.State);
+            AssumeSynced.Checked = result.Synchronized;
+            indexedHorde = result.HordeData;
+            indexedHordeState = (uint[])result.State.Clone();
+            indexedHordeORAS = result.IsORAS;
+            if (result.Method == TinyIndexMethod.ID)
+            {
+                ID_Tiny0.Value = result.State[0]; ID_Tiny1.Value = result.State[1];
+                ID_Tiny2.Value = result.State[2]; ID_Tiny3.Value = result.State[3];
+            }
+            if (IsDexNav && result.IsORAS && (result.Method == TinyIndexMethod.DexNavStep || result.Method == TinyIndexMethod.DexNavSearch))
+            {
+                CB_NavHA.Checked = result.HiddenAbility != 0;
+                Potential.Value = result.Potential;
+                CB_ForcedShiny.Checked = result.SpecialShiny;
+            }
+        }
         private MiscRNGTool miscrngtool = new MiscRNGTool();
         private Gen7MainRNGTool gen7tool;
         private NTRHelper ntrhelper;
@@ -1854,14 +1889,10 @@ namespace Pk3DSRNGTool
                 TTT.UpdateTypeComboBox(p.IsSoaring ? new[] { 4 } : new[] { 0, 1, 3 });
                 TTT.Delay.Value = Timedelay.Value;
                 if (p.IsSoaring) TTT.Delay.Value = 14;
-                if (TTT.Cry.Checked = p.Cry != 255) TTT.CryFrame.Value = 8;
+                if (TTT.Cry.Checked = p.Cry != 255) TTT.CryFrame.Value = p.Cry;
             }
             if (Method == 2 && FormPM is PKMW6 pw)
             {
-                TTT.Delay.Value = Timedelay.Value;
-                TTT.Parameter2.Value = Special_th.Value;
-                if (CB_3rdSlotUnlocked.Visible)
-                    TTT.Parameter1.Value = CB_3rdSlotUnlocked.Checked ? 3 : 2;
                 switch (pw.Type)
                 {
                     case EncounterType.Horde:
@@ -1889,6 +1920,14 @@ namespace Pk3DSRNGTool
                         TTT.Method.SelectedIndex = 0;
                         break;
                 }
+                // Method changes install defaults; apply the actual search settings afterwards.
+                TTT.Delay.Value = Timedelay.Value;
+                if (pw.Type == EncounterType.PokeRadar)
+                    TTT.Parameter2.Value = ChainLength.Value;
+                else
+                    TTT.Parameter2.Value = Special_th.Value;
+                if (pw.Type == EncounterType.FriendSafari)
+                    TTT.Parameter1.Value = CB_3rdSlotUnlocked.Checked ? 3 : 2;
             }
         }
 

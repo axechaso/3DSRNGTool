@@ -53,6 +53,7 @@ namespace Pk3DSRNGTool
                 rt.Synchronize = RNGPool.TinySynced;
                 return;
             }
+            RNGPool.tinystatus.RemoveType(3); // Fidgeting stops when the encounter is initiated.
             // Delay
             switch (Wildtype)
             {
