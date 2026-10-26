@@ -32,7 +32,7 @@ namespace Pk3DSRNGTool
         private void B_Connect_Click(object sender, EventArgs e)
         {
             ntrclient.OneClick = sender == B_OneClick;
-            L_NTRLog.Text = "Connecting...";
+            L_NTRLog.Text = Translator.TranslateText("Connecting...");
             ntrclient.setServer(IP.Text, 8000);
             try
             {
@@ -55,7 +55,7 @@ namespace Pk3DSRNGTool
         {
             NTR_Timer.Enabled = false;
             B_Connect.Enabled = true;
-            L_NTRLog.Text = Success ? "Disconnected" : "No Connection";
+            L_NTRLog.Text = Translator.TranslateText(Success ? "Disconnected" : "No Connection");
             B_Disconnect.Enabled = false;
             Program.mainform.OnConnected_Changed(false);
         }
@@ -65,7 +65,7 @@ namespace Pk3DSRNGTool
             if (ntrclient.port == 8000)
             {
                 NTR_Timer.Enabled = true;
-                L_NTRLog.Text = "Console Connected";
+                L_NTRLog.Text = Translator.TranslateText("Console Connected");
                 B_Connect.Enabled = false;
                 B_Disconnect.Enabled = true;
                 Program.mainform.OnConnected_Changed(true);

@@ -11,6 +11,7 @@ namespace Pk3DSRNGTool
     {
         private static readonly Dictionary<string, TranslationContext> Context = new Dictionary<string, TranslationContext>();
         internal static void TranslateInterface(this Control form, string lang = null) => TranslateForm(form, GetContext(lang ?? Settings.Default.Language));
+        internal static string TranslateText(string text) => GetContext(Settings.Default.Language).GetTranslatedText(text, StringItem.Translate(text));
 
         private static string GetTranslationFileNameExternal(string lang) => $"lang_{lang}.txt";
         private static TranslationContext GetContext(string lang)

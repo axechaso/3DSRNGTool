@@ -1,4 +1,7 @@
 AbilityLocked=Ability Locked
+TinyTimelineTool.UseReaderSeed=PokeReader seed
+TinyTimelineTool.L_TinySeed=Tiny u32 seed (hex)
+TinyTimelineTool.dgv_bgm=BGM
 Advanced=Advanced
 AlwaysSynced=Always Synced
 AroundTarget=±100 Frame

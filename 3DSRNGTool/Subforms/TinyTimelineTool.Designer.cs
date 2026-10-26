@@ -46,6 +46,9 @@
             this.TargetFrame = new System.Windows.Forms.NumericUpDown();
             this.L_TargetFrame = new System.Windows.Forms.Label();
             this.GB_Cali = new System.Windows.Forms.GroupBox();
+            this.UseReaderSeed = new System.Windows.Forms.CheckBox();
+            this.L_TinySeed = new System.Windows.Forms.Label();
+            this.TinySeed = new System.Windows.Forms.TextBox();
             this.Type4 = new System.Windows.Forms.ComboBox();
             this.Frame4 = new System.Windows.Forms.NumericUpDown();
             this.L_TypeNum = new System.Windows.Forms.Label();
@@ -113,7 +116,7 @@
             // 
             this.label0.AutoSize = true;
             this.label0.Font = new System.Drawing.Font("Consolas", 9F);
-            this.label0.Location = new System.Drawing.Point(12, 114);
+            this.label0.Location = new System.Drawing.Point(12, 121);
             this.label0.Name = "label0";
             this.label0.Size = new System.Drawing.Size(28, 14);
             this.label0.TabIndex = 107;
@@ -124,7 +127,7 @@
             // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Consolas", 9F);
-            this.label1.Location = new System.Drawing.Point(12, 85);
+            this.label1.Location = new System.Drawing.Point(12, 97);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(28, 14);
             this.label1.TabIndex = 106;
@@ -135,7 +138,7 @@
             // 
             this.label2.AutoSize = true;
             this.label2.Font = new System.Drawing.Font("Consolas", 9F);
-            this.label2.Location = new System.Drawing.Point(12, 56);
+            this.label2.Location = new System.Drawing.Point(12, 73);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(28, 14);
             this.label2.TabIndex = 105;
@@ -146,7 +149,7 @@
             // 
             this.label3.AutoSize = true;
             this.label3.Font = new System.Drawing.Font("Consolas", 9F);
-            this.label3.Location = new System.Drawing.Point(12, 28);
+            this.label3.Location = new System.Drawing.Point(12, 49);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(28, 14);
             this.label3.TabIndex = 104;
@@ -226,6 +229,9 @@
             // 
             // GB_Cali
             // 
+            this.GB_Cali.Controls.Add(this.UseReaderSeed);
+            this.GB_Cali.Controls.Add(this.L_TinySeed);
+            this.GB_Cali.Controls.Add(this.TinySeed);
             this.GB_Cali.Controls.Add(this.Type4);
             this.GB_Cali.Controls.Add(this.Frame4);
             this.GB_Cali.Controls.Add(this.L_TypeNum);
@@ -367,7 +373,7 @@
             // tiny3
             // 
             this.tiny3.Font = new System.Drawing.Font("Consolas", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.tiny3.Location = new System.Drawing.Point(40, 26);
+            this.tiny3.Location = new System.Drawing.Point(40, 46);
             this.tiny3.Mask = "AAAAAAAA";
             this.tiny3.Name = "tiny3";
             this.tiny3.Size = new System.Drawing.Size(63, 22);
@@ -379,7 +385,7 @@
             // tiny2
             // 
             this.tiny2.Font = new System.Drawing.Font("Consolas", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.tiny2.Location = new System.Drawing.Point(40, 54);
+            this.tiny2.Location = new System.Drawing.Point(40, 70);
             this.tiny2.Mask = "AAAAAAAA";
             this.tiny2.Name = "tiny2";
             this.tiny2.Size = new System.Drawing.Size(63, 22);
@@ -391,7 +397,7 @@
             // tiny0
             // 
             this.tiny0.Font = new System.Drawing.Font("Consolas", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.tiny0.Location = new System.Drawing.Point(40, 111);
+            this.tiny0.Location = new System.Drawing.Point(40, 118);
             this.tiny0.Mask = "AAAAAAAA";
             this.tiny0.Name = "tiny0";
             this.tiny0.Size = new System.Drawing.Size(63, 22);
@@ -403,7 +409,7 @@
             // tiny1
             // 
             this.tiny1.Font = new System.Drawing.Font("Consolas", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.tiny1.Location = new System.Drawing.Point(40, 82);
+            this.tiny1.Location = new System.Drawing.Point(40, 94);
             this.tiny1.Mask = "AAAAAAAA";
             this.tiny1.Name = "tiny1";
             this.tiny1.Size = new System.Drawing.Size(63, 22);
@@ -412,6 +418,34 @@
             this.tiny1.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
             this.tiny1.Value = ((uint)(0u));
             // 
+            // UseReaderSeed
+            //
+            this.UseReaderSeed.AutoSize = true;
+            this.UseReaderSeed.Checked = true;
+            this.UseReaderSeed.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.UseReaderSeed.Location = new System.Drawing.Point(12, 20);
+            this.UseReaderSeed.Name = "UseReaderSeed";
+            this.UseReaderSeed.Text = "PokeReader seed";
+            this.UseReaderSeed.TabIndex = 99;
+            this.UseReaderSeed.CheckedChanged += new System.EventHandler(this.SeedMode_CheckedChanged);
+            //
+            // L_TinySeed
+            //
+            this.L_TinySeed.AutoSize = true;
+            this.L_TinySeed.Location = new System.Drawing.Point(12, 49);
+            this.L_TinySeed.Name = "L_TinySeed";
+            this.L_TinySeed.Text = "Tiny u32 seed (hex)";
+            //
+            // TinySeed
+            //
+            this.TinySeed.CharacterCasing = System.Windows.Forms.CharacterCasing.Upper;
+            this.TinySeed.Font = new System.Drawing.Font("Consolas", 9F);
+            this.TinySeed.Location = new System.Drawing.Point(15, 72);
+            this.TinySeed.Name = "TinySeed";
+            this.TinySeed.Size = new System.Drawing.Size(162, 22);
+            this.TinySeed.TabIndex = 100;
+            this.TinySeed.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            //
             // B_Stop
             // 
             this.B_Stop.Location = new System.Drawing.Point(120, 110);
@@ -831,6 +865,9 @@
         public System.Windows.Forms.NumericUpDown TargetFrame;
         private System.Windows.Forms.Label L_TargetFrame;
         private System.Windows.Forms.GroupBox GB_Cali;
+        private System.Windows.Forms.CheckBox UseReaderSeed;
+        private System.Windows.Forms.Label L_TinySeed;
+        private System.Windows.Forms.TextBox TinySeed;
         private System.Windows.Forms.ComboBox Type2;
         private System.Windows.Forms.NumericUpDown Frame2;
         private System.Windows.Forms.ComboBox Type1;

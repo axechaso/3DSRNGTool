@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Windows.Forms;
 using Pk3DSRNGTool.Controls;
+using Pk3DSRNGTool.RNG;
 
 namespace Pk3DSRNGTool
 {
@@ -15,6 +17,7 @@ namespace Pk3DSRNGTool
         private const string TYPE = "Type";
         public static readonly string[] typestrlist = { "-", "Blink(+2)", "Blink(+1)", "Blink(short)", "Fidget", "Soaring", "XY ID", "Running NPC", "G/K" };
         private bool translating;
+        private bool updatingSeed;
         private IEnumerable<ComboBox> getTypeList()
         {
             for (int i = 1; i <= TypeNum.Maximum; i++)
@@ -32,6 +35,7 @@ namespace Pk3DSRNGTool
         {
             InitializeComponent();
             MainDGV.AutoGenerateColumns = false;
+            Method.DropDownWidth = 180;
             TypeNum.Maximum = 4; TypeNum.Minimum = 1;
             TargetFrame.Maximum = FuncUtil.MAXFRAME;
             foreach (var c in getFrameList())
@@ -39,15 +43,20 @@ namespace Pk3DSRNGTool
                 c.Maximum = FuncUtil.MAXFRAME;
                 c.Value = 500;
             }
+            SeedMode_CheckedChanged(null, EventArgs.Empty);
+            TinySeed.TextChanged += TinyInput_Changed;
+            foreach (var word in new[] { tiny0, tiny1, tiny2, tiny3 }) word.TextChanged += TinyInput_Changed;
         }
         public void Translate()
         {
             this.TranslateInterface();
+            DGVToolTip.SetToolTip(Boost, Translator.TranslateText("Bonus music"));
             int selected = Method.SelectedIndex;
             translating = true;
             Method.Items.Clear();
-            Method.Items.AddRange(methodlist.Select(s => StringItem.Translate(s)).ToArray());
+            Method.Items.AddRange(methodlist.Select(Translator.TranslateText).ToArray());
             Method.SelectedIndex = Math.Max(0, selected);
+            if (CurrentTypes != null) BindTypeComboBoxes();
             translating = false;
             if (selected < 0) Method_SelectedIndexChanged(null, EventArgs.Empty);
         }
@@ -56,14 +65,20 @@ namespace Pk3DSRNGTool
             if (type.Contains(0) || type.Contains(1)) type = type.Concat(new[] { 2 }).Distinct().ToArray();
             if (CurrentTypes != null && CurrentTypes.SequenceEqual(type)) return;
             CurrentTypes = (int[])type.Clone();
-            var List = typelist.Select((t, i) => new ComboItem(typestrlist[i], t)).Where(t => t.Value == -1 || type.Contains(t.Value));
+            BindTypeComboBoxes();
+        }
+        private void BindTypeComboBoxes()
+        {
+            var List = typelist.Select((t, i) => new ComboItem(Translator.TranslateText(typestrlist[i]), t))
+                .Where(t => t.Value == -1 || CurrentTypes.Contains(t.Value));
             foreach (var c in getTypeList())
             {
                 int previous = c.SelectedValue is int ? (int)c.SelectedValue : -1;
                 c.DisplayMember = "Text";
                 c.ValueMember = "Value";
                 c.DataSource = new BindingSource(List.Skip(c == Type1 ? 1 : 0), null);
-                c.SelectedValue = type.Contains(previous) ? previous : c == Type1 ? type[0] : -1;
+                c.DropDownWidth = 150;
+                c.SelectedValue = CurrentTypes.Contains(previous) ? previous : c == Type1 ? CurrentTypes[0] : -1;
             }
         }
         private void TinyTimelineTool_FormClosing(object sender, FormClosingEventArgs e)
@@ -74,16 +89,52 @@ namespace Pk3DSRNGTool
         }
         public uint[] Gen6Tiny
         {
-            get => new[] { tiny0.Value, tiny1.Value, tiny2.Value, tiny3.Value };
+            get
+            {
+                if (!UseReaderSeed.Checked) return new[] { tiny0.Value, tiny1.Value, tiny2.Value, tiny3.Value };
+                // TinyFinder's PokeReader mode calls init(seed, 0): no boot/index advance.
+                return TryGetReaderSeed(out uint seed) ? new TinyMT(seed).status : new uint[4];
+            }
             set
             {
                 if (value == null || value.Length != 4) return;
+                updatingSeed = true;
                 tiny0.Value = value[0]; tiny1.Value = value[1];
                 tiny2.Value = value[2]; tiny3.Value = value[3];
+                UseReaderSeed.Checked = false;
+                updatingSeed = false;
             }
         }
+        private bool TryGetReaderSeed(out uint seed)
+        {
+            string text = TinySeed.Text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text.Substring(2);
+            seed = 0;
+            return text.Length > 0 && text.Length <= 8 &&
+                uint.TryParse(text, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out seed);
+        }
+        private void SeedMode_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!UseReaderSeed.Checked && !updatingSeed && TryGetReaderSeed(out uint seed))
+                Gen6Tiny = new TinyMT(seed).status;
+            bool reader = UseReaderSeed.Checked;
+            L_TinySeed.Visible = TinySeed.Visible = reader;
+            foreach (var word in new Control[] { tiny0, tiny1, tiny2, tiny3, label0, label1, label2, label3 })
+                word.Visible = !reader;
+            if (!updatingSeed) InvalidateCalibration();
+        }
+        private void TinyInput_Changed(object sender, EventArgs e)
+        {
+            if (!updatingSeed && (UseReaderSeed.Checked == (sender == TinySeed))) InvalidateCalibration();
+        }
+        private void InvalidateCalibration()
+        {
+            NeedsCalibration = true;
+            MainDGV.DataSource = null;
+            list.Clear();
+        }
         private bool IsORASWild => Program.mainform?.IsORAS == true && new[] { 2, 5, 6, 8 }.Contains(Method.SelectedIndex);
-        public bool HasSeed => Gen6Tiny.Any(t => t != 0);
+        public bool HasSeed => UseReaderSeed.Checked ? TryGetReaderSeed(out _) : Gen6Tiny.Any(t => t != 0);
         public bool NeedsCalibration { get; private set; }
         public void ImportIndexState(uint[] state)
         {
@@ -111,7 +162,8 @@ namespace Pk3DSRNGTool
             else if (SkipList.IndexOf(Curr) > -1)  // Skip
                 SkipList[SkipList.IndexOf(Curr)] = Next;
             else if (!CurrentTypes.Contains(type)) // Not in typelist
-                FormUtil.Error($"Invalid Advance Type: {typestrlist[Array.IndexOf(typelist, type)]}");
+                FormUtil.Error(string.Format(Translator.TranslateText("Invalid Advance Type: {0}"),
+                    Translator.TranslateText(typestrlist[Array.IndexOf(typelist, type)])));
             else
             {
                 NeedsCalibration = false;
@@ -194,6 +246,9 @@ namespace Pk3DSRNGTool
 
         public TinyTimeline gettimeline(bool ForMainForm = false)
         {
+            if (!HasSeed) throw new ArgumentException(UseReaderSeed.Checked
+                ? "Enter a Tiny u32 seed as 1 to 8 hexadecimal digits (optional 0x prefix)."
+                : "Enter a nonzero TinyMT state.");
             bool considerDelay = ForMainForm || ConsiderDelay.Checked;
             var line = new TinyTimeline(Gen6Tiny)
             {
@@ -379,7 +434,7 @@ namespace Pk3DSRNGTool
             System.Drawing.Rectangle cellRect = MainDGV.GetCellDisplayRectangle(e.ColumnIndex, e.RowIndex, false);
             if (list[e.RowIndex].radar != null)
             {
-                DGVToolTip.ToolTipTitle = $"Pokeradar Result of Index{list[e.RowIndex].Index}:";
+                DGVToolTip.ToolTipTitle = string.Format(Translator.TranslateText("Poke Radar result at index {0}:"), list[e.RowIndex].Index);
                 DGVToolTip.Show(string.Format(string.Join("\n", list[e.RowIndex].radar.Overview))
                     , this,
                     MainDGV.Location.X + cellRect.X + cellRect.Size.Width,

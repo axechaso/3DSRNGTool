@@ -24,6 +24,8 @@ internal static class Gen6Tests
         Check("Long delay with frequent NPC calls", LongDelay);
         Check("Friend Safari slot probabilities", Safari);
         Check("Hidden form settings survive translation", FormSettings);
+        Check("PokeReader u32 seeds match TinyFinder without extra advances", ReaderSeedInput);
+        Check("Timeline menus and connection messages follow the selected language", TimelineLanguage);
         Check("Index boundaries, filters, RTC and cancellation", IndexSearch);
         Check("Main search keeps MT aligned to displayed frames", MainTimelineSearch);
         Check("Index window searches and transfers state", IndexWindow);
@@ -186,6 +188,7 @@ internal static class Gen6Tests
     {
         using (var tool = new TinyTimelineTool())
         {
+            tool.Gen6Tiny = State;
             tool.Translate(); tool.Method.SelectedIndex = 3;
             tool.Parameter1.Value = 2; tool.Parameter2.Value = 77;
             var type = (ComboBox)tool.Controls.Find("Type1", true)[0]; type.SelectedValue = 2;
@@ -205,6 +208,99 @@ internal static class Gen6Tests
             Equal(14, tool.gettimeline(ForMainForm: true).Delay, "main timeline always includes encounter delay");
             tool.ImportIndexState(State); Equal(true, tool.NeedsCalibration, "import invalidates timeline calibration");
         }
+    }
+    private static void ReaderSeedInput()
+    {
+        using (var tool = new TinyTimelineTool())
+        {
+            tool.Translate();
+            var mode = Control<CheckBox>(tool, "UseReaderSeed");
+            var seed = Control<TextBox>(tool, "TinySeed");
+            Equal(true, mode.Checked, "PokeReader is the default input mode");
+            Equal(false, tool.HasSeed, "empty input is not seed zero");
+            // Exported from TinyFinder 2133fe7: TinyMT.init(seed, 0), state words 0 through 3.
+            var vectors = new[] {
+                new[] { "00000000", "78A495AE,60127F96,0D6F15E9,1969DE6C" },
+                new[] { "00000001", "0CCA24D8,11BA5AD5,F2DAD045,D95DD7B2" },
+                new[] { "12345678", "30814D70,E940D010,E0FA3141,21F8CF22" },
+                new[] { "FFFFFFFF", "C9617590,E78A7A46,2ACFF562,092F22A7" },
+            };
+            foreach (var v in vectors)
+            {
+                seed.Text = v[0];
+                Equal(true, tool.HasSeed, "valid reader seed " + v[0]);
+                Equal(v[1], string.Join(",", tool.Gen6Tiny.Select(w => w.ToString("X8"))), "TinyFinder reader state " + v[0]);
+            }
+            foreach (string invalid in new[] { "", "0x", "100000000", "0x123456789", "G1234567", "12 34" })
+            {
+                seed.Text = invalid;
+                Equal(false, tool.HasSeed, "invalid reader seed " + invalid);
+                Equal(true, tool.Gen6Tiny.All(w => w == 0), "invalid seed does not reuse an earlier state");
+                Throws<ArgumentException>(() => tool.gettimeline());
+            }
+            seed.Text = " 0x12345678 ";
+            Equal(true, State.SequenceEqual(tool.Gen6Tiny), "hex prefix and surrounding whitespace");
+            tool.Method.SelectedIndex = 8;
+            var readerLine = tool.gettimeline(); readerLine.Generate(true);
+            mode.Checked = false;
+            Equal(true, State.SequenceEqual(tool.Gen6Tiny), "switch to four words keeps the resolved state");
+            Equal(State[3], Control<Pk3DSRNGTool.Controls.HexMaskedTextBox>(tool, "tiny3").Value, "word 3 display order");
+            var rawLine = tool.gettimeline(); rawLine.Generate(true);
+            Equal(Describe(readerLine), Describe(rawLine), "reader and four-word timeline results agree");
+            mode.Checked = true;
+            Invoke(tool, "B_Create_Click");
+            Equal(false, tool.NeedsCalibration, "manual event frames work without NTR");
+            Equal(true, Field<List<Frame_Tiny>>(tool, "list").Count > 0, "manual input generates rows");
+            seed.Text = "1";
+            Equal(true, tool.NeedsCalibration, "new seed requires checking event frames");
+            Equal(null, Control<DataGridView>(tool, "MainDGV").DataSource, "new seed clears stale results");
+            var incoming = new uint[] { 0x01234567, 0x89ABCDEF, 0x13579BDF, 0x2468ACE0 };
+            tool.Gen6Tiny = incoming;
+            Equal(false, mode.Checked, "NTR/backfill selects four-word mode");
+            Equal(true, incoming.SequenceEqual(tool.Gen6Tiny), "backfill is not overwritten by an old reader seed");
+            tool.ImportIndexState(State);
+            Equal(true, tool.NeedsCalibration, "index import still requires calibration");
+        }
+    }
+    private static void TimelineLanguage()
+    {
+        var settingsType = typeof(MainForm).Assembly.GetType("Pk3DSRNGTool.Properties.Settings");
+        var settings = settingsType.GetProperty("Default").GetValue(null, null);
+        var language = settingsType.GetProperty("Language");
+        string previous = (string)language.GetValue(settings, null);
+        var translate = typeof(Translator).GetMethod("TranslateText", BindingFlags.Static | BindingFlags.NonPublic);
+        var message = typeof(FormUtil).GetMethod("TranslateMessage", BindingFlags.Static | BindingFlags.NonPublic);
+        try
+        {
+            language.SetValue(settings, "en", null);
+            using (var tool = new TinyTimelineTool())
+            {
+                tool.Gen6Tiny = State; tool.Translate(); tool.Method.SelectedIndex = 8;
+                var type = Control<ComboBox>(tool, "Type1"); type.SelectedValue = 2;
+                tool.TypeNum.Value = 2;
+                Control<ComboBox>(tool, "Type2").SelectedValue = 6;
+                tool.Parameter2.Value = 77;
+                Equal("Blink(short)", type.Text, "English consumption label");
+                language.SetValue(settings, "zh", null); tool.Translate();
+                Equal("短眨眼", type.Text, "Chinese label refreshed with unchanged type choices");
+                Equal("跑动 NPC", Control<ComboBox>(tool, "Type2").Text, "second event is translated");
+                Equal("普通野外", tool.Method.Text, "Chinese encounter method");
+                Equal("PokeReader 种子", Control<CheckBox>(tool, "UseReaderSeed").Text, "reader input translated");
+                Equal(2m, tool.TypeNum.Value, "translation keeps event count");
+                Equal(77m, tool.Parameter2.Value, "translation keeps encounter rate");
+                Equal(true, State.SequenceEqual(tool.Gen6Tiny), "translation keeps seed state");
+                Equal("提示", translate.Invoke(null, new object[] { "Prompt" }), "prompt title translated");
+                Equal("错误", translate.Invoke(null, new object[] { "Error" }), "error title translated");
+                const string connection = "Connection lost, please double check your setup:\r\n(1) Disable PSS communications.\r\n(2) Use One Click function.";
+                Equal(string.Join(Environment.NewLine, new[] { "连接已断开，请检查以下设置：", "(1) 关闭 PSS 通信。", "(2) 在 NTR 连接窗口使用「一键完成」。" }),
+                    message.Invoke(null, new object[] { connection }), "full connection message translated");
+                language.SetValue(settings, "en", null); tool.Translate();
+                Equal("Blink(short)", type.Text, "English label restored");
+                Equal("PokeReader seed", Control<CheckBox>(tool, "UseReaderSeed").Text, "reader label restored");
+                Equal(2, type.SelectedValue, "language roundtrip keeps short blink selection");
+            }
+        }
+        finally { language.SetValue(settings, previous, null); }
     }
     private static void IndexSearch()
     {
@@ -254,6 +350,7 @@ internal static class Gen6Tests
             Control<CheckBox>(tool, "ConsiderDelay").Checked = true;
             Control<NumericUpDown>(tool, "Frame1").Value = 500;
             Control<ComboBox>(tool, "Type1").SelectedValue = 0;
+            Invoke(tool, "B_Create_Click");
             main.GetType().GetMethod("Search6_Timeline", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(main, null);
             var timeline = Field<System.Collections.IEnumerable>(main, "Frames").Cast<object>().ToArray();
             Equal(30, timeline.Length, "timeline clips requested range");
