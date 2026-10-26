@@ -23,38 +23,88 @@ namespace Pk3DSRNGTool
         private readonly CheckBox tinyWildPossibleHorde = WildCheck("TinyFinderPossibleHorde", "可能触发群战"), tinyWildRadarGrass = WildCheck("TinyFinderRadarGrass", "XY 草丛额外调用");
         private readonly CheckBox tinyWildActiveNav = WildCheck("TinyFinderActiveNav", "主动 DexNav"), tinyWildExclusive = WildCheck("TinyFinderExclusive", "DexNav 限定种");
         private readonly CheckBox tinyWildMusic = WildCheck("TinyFinderMusic", "奖励音乐"), tinyWildEmulator = WildCheck("TinyFinderEmulator", "模拟器");
+        private readonly CheckBox tinyWildManual = WildCheck("TinyFinderManualCalibration", "手动调整地点参数");
         private readonly Label tinyWildSummary = new Label { Name = "TinyFinderWildSummary", AutoSize = true, Text = "TinyMT 决定遭遇；主 MT 决定性格、个体值和 PID。" };
-        private GroupBox tinyWildPanel;
-        private FlowLayoutPanel tinyWildParameters, tinyWildFlags;
-        private int tinyWildGridOffset;
+        private Form tinyWildOptionsWindow;
+        private Button tinyWildOptionsButton;
+        private FlowLayoutPanel tinyWildParameters, tinyWildFlags, tinyWildCalibration;
         private int tinyWildPreviousSource;
         private WildPrediction activeWildPrediction;
         private bool UseTinyFinderWild => Ver < 4 && Method == 2 && tinyWildEnabled.Checked;
         private static CheckBox WildCheck(string name, string text) => new CheckBox { Name = name, Text = text, AutoSize = true, Margin = new Padding(4, 5, 4, 0) };
         private static NumericUpDown WildNumber(string name, int min, int max, int value) => new NumericUpDown { Name = name, Minimum = min, Maximum = max, Value = value, Width = max > 999 ? 66 : 53 };
         private static Label WildLabel(string text) => new Label { Text = text, AutoSize = true, Margin = new Padding(4, 6, 2, 0) };
+        private static Control WildParameter(string text, NumericUpDown input)
+        {
+            var pair = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = false, Margin = new Padding(0, 0, 16, 4) };
+            input.Width = 72;
+            var label = WildLabel(text);
+            label.Name = input.Name + "Label";
+            pair.Controls.Add(label);
+            pair.Controls.Add(input);
+            return pair;
+        }
+
+        private static void ShowWildParameter(NumericUpDown input, bool visible)
+        {
+            input.Parent.Visible = visible;
+            input.Enabled = visible;
+        }
 
         private void InitializeTinyFinderWild()
         {
-            tinyWildPanel = new GroupBox { Name = "TinyFinderWildOptions", Text = "G6 遭遇计算 · TinyFinder", Visible = false,
-                Left = Wild_Setting.Left, Top = Math.Max(Wild_Setting.Bottom, Math.Max(Filters.Bottom, RNGInfo.Bottom)) + 4,
-                Width = TP_WildRNG.ClientSize.Width - 16, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Padding = new Padding(6, 14, 6, 6), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
-            var rows = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.TopDown, WrapContents = false, Dock = DockStyle.Fill, Margin = new Padding(0) };
+            // Keep the original three settings groups and full-height results table.
+            // Extra TinyMT parameters live in an owned window, never in the tab's layout.
+            tinyWildOptionsButton = new Button { Name = "TinyFinderWildOptionsButton", Text = "TinyMT 遭遇设置…",
+                Location = new Point(L_Lead.Left, B_OpenTool.Top),
+                Size = new Size(AssumeSynced.Left - L_Lead.Left - 8, B_OpenTool.Height), Visible = false };
+            tinyWildOptionsButton.Click += ShowTinyFinderWildOptions;
+            Wild_Setting.Controls.Add(tinyWildOptionsButton);
+
+            tinyWildOptionsWindow = new Form { Name = "TinyFinderWildOptions", Text = "TinyMT 遭遇设置 · G6",
+                Font = Font, AutoScaleMode = AutoScaleMode.Font, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false,
+                ShowInTaskbar = false, StartPosition = FormStartPosition.CenterParent, Padding = new Padding(12), Owner = this };
+            components.Add(tinyWildOptionsWindow);
+            tinyWildOptionsWindow.FormClosing += (s, e) => {
+                if (e.CloseReason != CloseReason.UserClosing) return;
+                e.Cancel = true;
+                tinyWildOptionsWindow.Hide();
+            };
+            var rows = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                FlowDirection = FlowDirection.TopDown, WrapContents = false, Dock = DockStyle.Fill, Margin = new Padding(0) };
             Func<Control[], FlowLayoutPanel> row = controls => {
-                var panel = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, WrapContents = false, Margin = new Padding(0) };
+                var panel = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                    WrapContents = false, Margin = new Padding(0, 0, 0, 8) };
                 panel.Controls.AddRange(controls); rows.Controls.Add(panel); return panel;
             };
             tinyWildSource.Items.AddRange(new[] { "PokeReader 种子", "四段状态 (3→0)", "时间线状态" }); tinyWildSource.SelectedIndex = 0;
             var searcher = new Button { Name = "TinyFinderSearcher", Text = "遭遇搜索器…", AutoSize = true };
             searcher.Click += (s, e) => ShowTinyFinder();
-            row(new Control[] { tinyWildEnabled, tinyWildSource, tinyWildSeed, searcher, tinyWildSummary });
-            tinyWildParameters = row(new Control[] { WildLabel("NPC 调用"), tinyWildNPC, WildLabel("队伍数"), tinyWildParty,
-                WildLabel("背包调用"), tinyWildBag, WildLabel("长眨眼帧"), tinyWildBlink, WildLabel("交互 MT 帧"), tinyWildInteract,
-                WildLabel("蜂蜜延迟"), tinyWildHoneyDelay, WildLabel("搜索等级"), tinyWildSearchLevel });
-            tinyWildFlags = row(new Control[] { tinyWildHoney, tinyWildMovingHorde, tinyWildPossibleHorde, tinyWildRadarGrass,
-                tinyWildActiveNav, tinyWildExclusive, tinyWildMusic, tinyWildEmulator });
-            tinyWildPanel.Controls.Add(rows); TP_WildRNG.Controls.Add(tinyWildPanel);
+            row(new Control[] { tinyWildEnabled, searcher });
+            tinyWildSeed.Width = 110;
+            row(new Control[] { tinyWildSource, tinyWildSeed });
+            tinyWildParameters = row(new[] { WildParameter("队伍数", tinyWildParty),
+                WildParameter("交互 MT 帧", tinyWildInteract), WildParameter("搜索等级", tinyWildSearchLevel) });
+            tinyWildFlags = row(new Control[] { tinyWildHoney, tinyWildMovingHorde, tinyWildActiveNav,
+                tinyWildExclusive, tinyWildMusic, tinyWildEmulator });
+            row(new Control[] { tinyWildManual });
+            tinyWildCalibration = row(new[] { WildParameter("NPC 调用", tinyWildNPC), WildParameter("背包调用", tinyWildBag),
+                WildParameter("长眨眼帧", tinyWildBlink), WildParameter("蜂蜜延迟", tinyWildHoneyDelay), tinyWildPossibleHorde, tinyWildRadarGrass });
+            foreach (var panel in new[] { tinyWildParameters, tinyWildFlags, tinyWildCalibration })
+            {
+                panel.WrapContents = true;
+                panel.MaximumSize = new Size(470, 0);
+            }
+            tinyWildSummary.MaximumSize = new Size(470, 0);
+            row(new Control[] { tinyWildSummary });
+            row(new Control[] { WildLabel("设置即时生效；关闭此窗口后，在主界面点击“计算”。") });
+            var close = new Button { Name = "CloseTinyFinderWildOptions", Text = "关闭", AutoSize = true };
+            close.Click += (s, e) => tinyWildOptionsWindow.Hide();
+            tinyWildOptionsWindow.CancelButton = close;
+            row(new Control[] { close });
+            tinyWildOptionsWindow.Controls.Add(rows);
             tinyWildEnabled.CheckedChanged += (s, e) => {
                 if (tinyWildEnabled.Checked) CreateTimeline.Checked = false;
                 if (!Initializing && Method == 2) RefreshLocation();
@@ -71,14 +121,25 @@ namespace Pk3DSRNGTool
                     else if (tinyWildPreviousSource == 2 && TTT.HasSeed) tinyWildSeed.Text = string.Join(",", TinySeeds.Reverse().Select(w => w.ToString("X8")));
                 }
                 else if (next == 0 && tinyWildPreviousSource != 0) tinyWildSeed.Text = "";
-                tinyWildSeed.Enabled = next != 2; tinyWildPreviousSource = next;
+                tinyWildSeed.Visible = tinyWildSeed.Enabled = next != 2;
+                tinyWildSeed.Width = next == 1 ? 300 : 110;
+                tinyWildPreviousSource = next;
             };
-            tinyWildEmulator.CheckedChanged += (s, e) => ApplyTinyFinderLocationDefaults();
+            tinyWildManual.CheckedChanged += (s, e) => UpdateTinyFinderWildControls();
+            tinyWildEmulator.CheckedChanged += (s, e) => { ApplyTinyFinderLocationDefaults(); UpdateTinyFinderWildControls(); };
             tinyWildMovingHorde.CheckedChanged += (s, e) => UpdateTinyFinderWildControls();
             tinyWildHoney.CheckedChanged += (s, e) => { if (UseTinyFinderWild && !Initializing) RefreshLocation(); UpdateTinyFinderWildControls(); };
             tinyWildActiveNav.CheckedChanged += (s, e) => UpdateTinyFinderWildControls();
             tinyWildExclusive.CheckedChanged += (s, e) => { if (UseTinyFinderWild && IsDexNav && !Initializing) RefreshWildSpecies(); };
             CreateTimeline.CheckedChanged += (s, e) => { if (CreateTimeline.Checked) tinyWildEnabled.Checked = false; };
+        }
+
+        private void ShowTinyFinderWildOptions(object sender, EventArgs e)
+        {
+            UpdateTinyFinderWildControls();
+            if (!tinyWildEnabled.Enabled) return;
+            if (!tinyWildOptionsWindow.Visible) tinyWildOptionsWindow.Show(this);
+            tinyWildOptionsWindow.Activate();
         }
 
         private EnctrKey TinyFinderWildMethod
@@ -104,8 +165,9 @@ namespace Pk3DSRNGTool
             Rate = (int)Special_th.Value, BagAdvances = (int)tinyWildBag.Value, LongBlink = (int)tinyWildBlink.Value,
             InteractFrame = (int)tinyWildInteract.Value, HoneyDelay = (int)tinyWildHoneyDelay.Value, SearchLevel = (int)tinyWildSearchLevel.Value,
             PossibleHorde = tinyWildPossibleHorde.Enabled && tinyWildPossibleHorde.Checked, RadarGrass = tinyWildRadarGrass.Enabled && tinyWildRadarGrass.Checked,
-            MovingHorde = tinyWildMovingHorde.Checked, BonusMusic = tinyWildMusic.Checked, ShinyCharm = ShinyCharm.Checked,
-            Exclusive = tinyWildExclusive.Checked, Chain = (int)ChainLength.Value, SafariSlots = CB_3rdSlotUnlocked.Checked ? 3 : 2,
+            MovingHorde = IsHorde && tinyWildMovingHorde.Checked,
+            BonusMusic = TinyFinderWildMethod == EnctrKey.Radar && tinyWildMusic.Checked, ShinyCharm = ShinyCharm.Checked,
+            Exclusive = IsDexNav && tinyWildExclusive.Checked, Chain = (int)ChainLength.Value, SafariSlots = CB_3rdSlotUnlocked.Checked ? 3 : 2,
             FixedSpecies = SlotSpecies.SelectedValue is int ? (int)SlotSpecies.SelectedValue : 0,
             Flute = (Lead)LeadAbility.SelectedIndex == Lead.BlackFlute ? 1 : (Lead)LeadAbility.SelectedIndex == Lead.WhiteFlute ? 2 : 0,
         };
@@ -136,32 +198,50 @@ namespace Pk3DSRNGTool
 
         private void UpdateTinyFinderWildControls()
         {
-            if (tinyWildPanel == null) return;
+            if (tinyWildOptionsWindow == null) return;
             bool visible = Ver < 4 && Method == 2;
-            tinyWildPanel.Visible = visible;
-            int offset = visible ? tinyWildPanel.PreferredSize.Height + 8 : 0;
-            int delta = offset - tinyWildGridOffset;
-            DGV.Top += delta; DGV.Height -= delta; tinyWildGridOffset = offset;
+            tinyWildOptionsButton.Text = UseTinyFinderWild ? "TinyMT 设置（已启用）" : "TinyMT 遭遇设置…";
             var type = (FormPM as PKMW6)?.Type;
-            bool supported = type != EncounterType.Trap;
+            bool supported = visible && type.HasValue && type != EncounterType.Trap;
+            tinyWildOptionsButton.Visible = supported;
+            if (!supported) tinyWildOptionsWindow.Hide();
             tinyWildEnabled.Enabled = supported;
-            if (!supported) tinyWildEnabled.Checked = false;
-            tinyWildParameters.Enabled = tinyWildFlags.Enabled = UseTinyFinderWild;
-            tinyWildHoney.Enabled = type == EncounterType.Normal;
-            tinyWildMovingHorde.Enabled = type == EncounterType.Horde;
+            if (visible && !supported) tinyWildEnabled.Checked = false;
+            tinyWildParameters.Enabled = tinyWildFlags.Enabled = tinyWildCalibration.Enabled = UseTinyFinderWild;
+            tinyWildManual.Enabled = UseTinyFinderWild;
+            tinyWildHoney.Visible = tinyWildHoney.Enabled = supported && type == EncounterType.Normal;
+            tinyWildMovingHorde.Visible = tinyWildMovingHorde.Enabled = supported && type == EncounterType.Horde;
             bool honey = type == EncounterType.Horde && !tinyWildMovingHorde.Checked || type == EncounterType.Normal && tinyWildHoney.Checked;
-            tinyWildPossibleHorde.Enabled = type == EncounterType.Normal && !honey;
-            tinyWildRadarGrass.Enabled = !IsORAS && (type == EncounterType.Normal && !honey || type == EncounterType.Horde && tinyWildMovingHorde.Checked);
-            tinyWildActiveNav.Enabled = tinyWildExclusive.Enabled = tinyWildSearchLevel.Enabled = type == EncounterType.DexNav;
-            tinyWildMusic.Enabled = type == EncounterType.PokeRadar;
-            tinyWildBag.Enabled = tinyWildHoneyDelay.Enabled = honey;
-            tinyWildBlink.Enabled = tinyWildInteract.Enabled = honey || type == EncounterType.Fishing || type == EncounterType.RockSmash || type == EncounterType.DexNav && tinyWildActiveNav.Checked;
+            bool walking = type == EncounterType.Normal && !honey || type == EncounterType.Horde && tinyWildMovingHorde.Checked;
+            var original = TinyFinder.Controls.EncounterType.GetEncounterTypes(IsORAS).FirstOrDefault(t => t.Key == TinyFinderWildMethod);
+            bool interact = supported && original != null && original.ShowsTriggerMTFrame;
+            bool blink = supported && (honey || interact);
+            bool calibration = supported && (walking || blink || type == EncounterType.DexNav);
+            tinyWildManual.Visible = calibration;
+            tinyWildCalibration.Visible = calibration && tinyWildManual.Checked;
+            tinyWildPossibleHorde.Visible = tinyWildPossibleHorde.Enabled = supported && type == EncounterType.Normal && !honey;
+            tinyWildRadarGrass.Visible = tinyWildRadarGrass.Enabled = supported && !IsORAS && walking;
+            tinyWildActiveNav.Visible = tinyWildActiveNav.Enabled = supported && type == EncounterType.DexNav;
+            tinyWildExclusive.Visible = tinyWildExclusive.Enabled = supported && type == EncounterType.DexNav;
+            tinyWildMusic.Visible = supported && type == EncounterType.PokeRadar;
+            tinyWildMusic.Enabled = supported && type == EncounterType.PokeRadar && ChainLength.Value > 0;
+            tinyWildEmulator.Visible = tinyWildEmulator.Enabled = blink;
+            ShowWildParameter(tinyWildParty, supported && original != null && original.ShowsParty);
+            ShowWildParameter(tinyWildInteract, interact);
+            ShowWildParameter(tinyWildSearchLevel, supported && type == EncounterType.DexNav);
+            ShowWildParameter(tinyWildNPC, supported && (walking || type == EncounterType.Fishing || type == EncounterType.RockSmash || type == EncounterType.DexNav));
+            ShowWildParameter(tinyWildBag, supported && honey);
+            ShowWildParameter(tinyWildHoneyDelay, supported && honey);
+            ShowWildParameter(tinyWildBlink, blink);
             if (UseTinyFinderWild)
             {
                 ChainLength.Maximum = 999;
-                L_Rate.Visible = Special_th.Visible = type == EncounterType.Normal || type == EncounterType.Fishing || type == EncounterType.FriendSafari || type == EncounterType.Horde;
-                L_ChainLength.Visible = ChainLength.Visible = type == EncounterType.PokeRadar || type == EncounterType.DexNav;
+                L_Rate.Visible = Special_th.Visible = walking || type == EncounterType.Fishing || type == EncounterType.FriendSafari;
+                L_ChainLength.Visible = ChainLength.Visible = type == EncounterType.PokeRadar || type == EncounterType.DexNav || type == EncounterType.Fishing;
             }
+            // DexNav has both potential and chain; they must not occupy the same row.
+            ChainLength.Location = new Point(Special_th.Left, IsDexNav ? Special_th.Top : Potential.Top);
+            L_ChainLength.Location = new Point(L_Potential.Left, IsDexNav ? L_Rate.Top : L_Potential.Top);
         }
 
         private void ApplyTinyFinderLocationDefaults()

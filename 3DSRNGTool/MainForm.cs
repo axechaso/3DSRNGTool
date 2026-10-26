@@ -877,6 +877,7 @@ namespace Pk3DSRNGTool
         private void ChainLength_ValueChanged(object sender, EventArgs e)
         {
             CB_ForcedShiny.Enabled = ChainLength.Value > 0;
+            UpdateTinyFinderWildControls();
         }
 
         private void CreateTimeline_CheckedChanged(object sender, EventArgs e)
@@ -1017,6 +1018,7 @@ namespace Pk3DSRNGTool
         private void Special_th_ValueChanged(object sender, EventArgs e)
         {
             L_Rate.Visible = Special_th.Visible = Special_th.Value > 0;
+            if (UseTinyFinderWild) UpdateTinyFinderWildControls();
         }
 
         private void DayNight_CheckedChanged(object sender, EventArgs e)

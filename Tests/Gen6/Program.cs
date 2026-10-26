@@ -17,6 +17,8 @@ internal static class Gen6Tests
     [STAThread]
     private static int Main()
     {
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
         Check("TinyFinder reference vectors", ReferenceVectors);
         Check("Timeline can be searched repeatedly", RepeatTimeline);
         Check("Empty queue, negative delay and validation", EmptyQueue);
@@ -33,6 +35,7 @@ internal static class Gen6Tests
         Check("Original TinyFinder wild window generates and transfers results", OriginalTinyFinderWindow);
         Check("TinyFinder wild data and generators work without a window", WildCoreIntegration);
         Check("Main G6 wild search uses TinyFinder and keeps the existing results table", NativeWildIntegration);
+        Check("TinyMT options preserve the original layout and survive closing", WildOptionsLayout);
         Console.WriteLine("{0} assertions; {1} failed cases.", assertions, failures);
         return failures == 0 ? 0 : 1;
     }
@@ -330,6 +333,164 @@ internal static class Gen6Tests
     private static T Field<T>(object source, string name) => (T)source.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(source);
     private static void Invoke(object source, string name) => source.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(source, new object[] { null, EventArgs.Empty });
     private static T Control<T>(Form form, string name) where T : System.Windows.Forms.Control => (T)form.Controls.Find(name, true)[0];
+    private static T WildControl<T>(MainForm form, string name) where T : System.Windows.Forms.Control => Control<T>(Field<Form>(form, "tinyWildOptionsWindow"), name);
+
+    private static void WildOptionsLayout()
+    {
+        var program = typeof(MainForm).Assembly.GetType("Pk3DSRNGTool.Program");
+        Form options;
+        using (var main = new MainForm())
+        {
+            program.GetField("mainform").SetValue(null, main);
+            try
+            {
+                main.Show();
+                Application.DoEvents();
+                main.Ver = 0;
+                var tabs = Control<TabControl>(main, "RNGMethod");
+                tabs.SelectedIndex = 0;
+                var grid = Control<DataGridView>(main, "DGV");
+                var bounds = grid.Bounds;
+                var idGrid = Control<DataGridView>(main, "DGV_ID");
+                var idBounds = idGrid.Bounds;
+                options = Field<Form>(main, "tinyWildOptionsWindow");
+                for (int repeat = 0; repeat < 3; repeat++)
+                    for (int version = 0; version < 9; version++)
+                    {
+                        main.Ver = version;
+                        for (int method = 0; method < tabs.TabCount; method++)
+                        {
+                            tabs.SelectedIndex = method;
+                            Equal(bounds, grid.Bounds, "version/tab switching preserves full results area");
+                            Equal(idBounds, idGrid.Bounds, "ID results retain their original bounds");
+                        }
+                    }
+                main.Ver = 0;
+                tabs.SelectedIndex = 2;
+                Control<ComboBox>(main, "CB_Category").SelectedIndex = 0;
+                var optionsButton = Control<Button>(main, "TinyFinderWildOptionsButton");
+                Equal(false, optionsButton.Bounds.IntersectsWith(Control<CheckBox>(main, "AssumeSynced").Bounds), "options button does not overlap sync");
+                Equal(false, optionsButton.Bounds.IntersectsWith(Control<Button>(main, "B_OpenTool").Bounds), "options button does not overlap timeline tool");
+                SaveLayoutPreview(main, "main");
+                Invoke(main, "ShowTinyFinderWildOptions");
+                Application.DoEvents();
+                Equal(true, options.Visible, "options open separately");
+                Invoke(main, "ShowTinyFinderWildOptions");
+                Equal(true, options.Visible, "opening options again reuses the visible window");
+                Equal(main, options.Owner, "options follow their owner");
+                WildControl<CheckBox>(main, "TinyFinderWildEnabled").Checked = true;
+                WildControl<TextBox>(main, "TinyFinderWildSeed").Text = "12345678";
+                WildControl<NumericUpDown>(main, "TinyFinderNPC").Value = 7;
+                options.Close();
+                Equal(false, options.Visible, "closing hides the options window");
+                Equal(false, options.IsDisposed, "closing preserves the controls");
+                Invoke(main, "ShowTinyFinderWildOptions");
+                Equal(true, WildControl<CheckBox>(main, "TinyFinderWildEnabled").Checked, "enabled state survives reopening");
+                Equal("12345678", WildControl<TextBox>(main, "TinyFinderWildSeed").Text, "seed survives reopening");
+                Equal(7m, WildControl<NumericUpDown>(main, "TinyFinderNPC").Value, "parameters survive reopening");
+                Equal(bounds, grid.Bounds, "opening and closing options does not shrink results");
+                WildOptionsVisibility(main);
+                main.Ver = 0;
+                Control<ComboBox>(main, "CB_Category").SelectedIndex = 0;
+                Control<RadioButton>(main, "CreateTimeline").Checked = true;
+                Equal(false, WildControl<CheckBox>(main, "TinyFinderWildEnabled").Checked, "timeline still disables direct encounter calculation");
+                tabs.SelectedIndex = 0;
+                Equal(false, options.Visible, "leaving wild mode hides the options");
+                tabs.SelectedIndex = 2;
+                Invoke(main, "ShowTinyFinderWildOptions");
+                main.Ver = 7;
+                Equal(false, options.Visible, "leaving G6 hides the options");
+            }
+            finally { program.GetField("mainform").SetValue(null, null); }
+        }
+        Equal(true, options.IsDisposed, "disposing the owner also disposes hidden options");
+    }
+
+    private static void WildOptionsVisibility(MainForm main)
+    {
+        int preview = 0;
+        string[] names = { "Party", "Interact", "SearchLevel", "Honey", "MovingHorde", "ActiveNav", "Exclusive", "Music", "Emulator",
+            "ManualCalibration", "NPC", "Bag", "Blink", "HoneyDelay", "PossibleHorde", "RadarGrass" };
+        Action<string[]> expect = visible => {
+            foreach (var name in names)
+                Equal(visible.Contains(name), WildControl<System.Windows.Forms.Control>(main, "TinyFinder" + name).Visible,
+                    Control<ComboBox>(main, "CB_Category").Text + ": visibility of " + name);
+            foreach (var name in new[] { "Party", "Interact", "SearchLevel", "NPC", "Bag", "Blink", "HoneyDelay" })
+                Equal(visible.Contains(name), WildControl<Label>(main, "TinyFinder" + name + "Label").Visible, "labels follow their input: " + name);
+            var options = Field<Form>(main, "tinyWildOptionsWindow");
+            Application.DoEvents();
+            CheckLayoutBounds(options);
+            SaveLayoutPreview(options, "options-" + preview++);
+        };
+        Action<EncounterType> select = type => {
+            var categories = main.IsORAS ? PKMW6.Species_ORAS : PKMW6.Species_XY;
+            Control<ComboBox>(main, "CB_Category").SelectedIndex = Array.FindIndex(categories, c => ((PKMW6)c.List[0]).Type == type);
+        };
+        select(EncounterType.Normal);
+        expect(new[] { "Party", "Honey", "ManualCalibration" });
+        WildControl<CheckBox>(main, "TinyFinderManualCalibration").Checked = true;
+        expect(new[] { "Party", "Honey", "ManualCalibration", "NPC", "PossibleHorde", "RadarGrass" });
+        WildControl<CheckBox>(main, "TinyFinderManualCalibration").Checked = false;
+        WildControl<CheckBox>(main, "TinyFinderHoney").Checked = true;
+        expect(new[] { "Party", "Honey", "Emulator", "ManualCalibration" });
+        Equal(false, Control<NumericUpDown>(main, "Special_th").Visible, "honey does not display a walking encounter rate");
+        WildControl<CheckBox>(main, "TinyFinderHoney").Checked = false;
+        select(EncounterType.Horde);
+        expect(new[] { "Party", "MovingHorde", "Emulator", "ManualCalibration" });
+        WildControl<CheckBox>(main, "TinyFinderMovingHorde").Checked = true;
+        expect(new[] { "Party", "MovingHorde", "ManualCalibration" });
+        Equal(true, Control<NumericUpDown>(main, "Special_th").Visible, "moving hordes display encounter rate");
+        select(EncounterType.Fishing);
+        var optionsProperty = main.GetType().GetProperty("TinyFinderWildOptions", BindingFlags.Instance | BindingFlags.NonPublic);
+        Equal(false, ((TinyFinder.WildOptions)optionsProperty.GetValue(main, null)).MovingHorde, "hidden horde selection does not affect fishing");
+        WildControl<CheckBox>(main, "TinyFinderMovingHorde").Checked = false;
+        expect(new[] { "Party", "Interact", "Emulator", "ManualCalibration" });
+        Equal(true, Control<NumericUpDown>(main, "ChainLength").Visible, "fishing retains its chain input");
+        select(EncounterType.RockSmash);
+        expect(new[] { "Party", "Interact", "Emulator", "ManualCalibration" });
+        select(EncounterType.PokeRadar);
+        expect(new[] { "Party", "Music" });
+        select(EncounterType.FriendSafari);
+        expect(new[] { "Party" });
+        select(EncounterType.CaveShadow);
+        expect(new[] { "Party" });
+        main.Ver = 2;
+        select(EncounterType.DexNav);
+        expect(new[] { "Party", "SearchLevel", "ActiveNav", "Exclusive", "ManualCalibration" });
+        Equal(false, Control<NumericUpDown>(main, "ChainLength").Bounds.IntersectsWith(Control<NumericUpDown>(main, "Potential").Bounds),
+            "DexNav chain and potential no longer overlap");
+        WildControl<CheckBox>(main, "TinyFinderActiveNav").Checked = true;
+        expect(new[] { "Party", "Interact", "SearchLevel", "ActiveNav", "Exclusive", "Emulator", "ManualCalibration" });
+        WildControl<CheckBox>(main, "TinyFinderExclusive").Checked = true;
+        select(EncounterType.Normal);
+        Equal(false, ((TinyFinder.WildOptions)optionsProperty.GetValue(main, null)).Exclusive, "hidden DexNav selection does not affect normal wild");
+        expect(new[] { "Party", "Honey", "ManualCalibration" });
+        WildControl<CheckBox>(main, "TinyFinderManualCalibration").Checked = true;
+        expect(new[] { "Party", "Honey", "ManualCalibration", "NPC", "PossibleHorde" });
+        WildControl<CheckBox>(main, "TinyFinderManualCalibration").Checked = false;
+    }
+
+    private static void CheckLayoutBounds(System.Windows.Forms.Control parent)
+    {
+        foreach (System.Windows.Forms.Control child in parent.Controls)
+        {
+            if (!child.Visible) continue;
+            Equal(true, parent.ClientRectangle.Contains(child.Bounds), "visible control fits its container: " + child.Name);
+            if (child is Panel) CheckLayoutBounds(child);
+        }
+    }
+
+    private static void SaveLayoutPreview(Form form, string name)
+    {
+        string directory = Environment.GetEnvironmentVariable("RNGTOOL_LAYOUT_PREVIEW");
+        if (string.IsNullOrEmpty(directory)) return;
+        Directory.CreateDirectory(directory);
+        using (var bitmap = new System.Drawing.Bitmap(form.Width, form.Height))
+        {
+            form.DrawToBitmap(bitmap, new System.Drawing.Rectangle(System.Drawing.Point.Empty, form.Size));
+            bitmap.Save(Path.Combine(directory, name + ".png"), System.Drawing.Imaging.ImageFormat.Png);
+        }
+    }
     private static void MainTimelineSearch()
     {
         var program = typeof(MainForm).Assembly.GetType("Pk3DSRNGTool.Program");
@@ -463,9 +624,9 @@ internal static class Gen6Tests
                 Control<TabControl>(main, "RNGMethod").SelectedIndex = 2;
                 Control<ComboBox>(main, "CB_Category").SelectedIndex = 0;
                 Invoke(main, "Poke_SelectedIndexChanged");
-                Control<CheckBox>(main, "TinyFinderWildEnabled").Checked = true;
-                Control<TextBox>(main, "TinyFinderWildSeed").Text = "0x12345678";
-                Control<CheckBox>(main, "TinyFinderPossibleHorde").Checked = false;
+                WildControl<CheckBox>(main, "TinyFinderWildEnabled").Checked = true;
+                WildControl<TextBox>(main, "TinyFinderWildSeed").Text = "0x12345678";
+                WildControl<CheckBox>(main, "TinyFinderPossibleHorde").Checked = false;
                 Control<NumericUpDown>(main, "Special_th").Value = 100;
                 Control<CheckBox>(main, "IgnoreFilters").Checked = true;
                 Control<NumericUpDown>(main, "Frame_min").Value = 10;
@@ -508,7 +669,7 @@ internal static class Gen6Tests
                         if (((PKMW6)groups[category].List[0]).Type == EncounterType.Trap) continue;
                         Control<ComboBox>(main, "CB_Category").SelectedIndex = category;
                         Invoke(main, "Poke_SelectedIndexChanged");
-                        Control<CheckBox>(main, "TinyFinderWildEnabled").Checked = true;
+                        WildControl<CheckBox>(main, "TinyFinderWildEnabled").Checked = true;
                         Control<NumericUpDown>(main, "Special_th").Value = 100;
                         options = (TinyFinder.WildOptions)main.GetType().GetProperty("TinyFinderWildOptions", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(main, null);
                         area = Field<object>(main, "ea") as TinyFinderArea6;
@@ -521,15 +682,15 @@ internal static class Gen6Tests
                 main.Ver = 2;
                 Control<ComboBox>(main, "CB_Category").SelectedIndex = Array.FindIndex(PKMW6.Species_ORAS, c => ((PKMW6)c.List[0]).Type == EncounterType.DexNav);
                 Invoke(main, "Poke_SelectedIndexChanged");
-                Control<CheckBox>(main, "TinyFinderWildEnabled").Checked = true;
-                Control<CheckBox>(main, "TinyFinderActiveNav").Checked = true;
+                WildControl<CheckBox>(main, "TinyFinderWildEnabled").Checked = true;
+                WildControl<CheckBox>(main, "TinyFinderActiveNav").Checked = true;
                 Control<ComboBox>(main, "SlotSpecies").SelectedIndex = 1;
                 Invoke(main, "Search_Click");
                 Equal(3, Field<System.Collections.IEnumerable>(main, "Frames").Cast<object>().Count(), "active DexNav generates in the main window");
                 main.Ver = 0;
                 Control<ComboBox>(main, "CB_Category").SelectedIndex = Array.FindIndex(PKMW6.Species_XY, c => ((PKMW6)c.List[0]).Type == EncounterType.PokeRadar);
                 Invoke(main, "Poke_SelectedIndexChanged");
-                Control<CheckBox>(main, "TinyFinderWildEnabled").Checked = true;
+                WildControl<CheckBox>(main, "TinyFinderWildEnabled").Checked = true;
                 Control<NumericUpDown>(main, "ChainLength").Value = 20;
                 Control<ComboBox>(main, "SlotSpecies").SelectedIndex = 1;
                 Control<CheckBox>(main, "AssumeSynced").Checked = true;
@@ -606,8 +767,8 @@ internal static class Gen6Tests
                     var expected = new[] { "Tiny0", "Tiny1", "Tiny2", "Tiny3" }.Select(n => (uint)row.GetType().GetProperty(n).GetValue(row, null)).ToArray();
                     Equal(true, original.GetType().GetMethod("ExportSelectedResult").Invoke(original, null), "original selection exported");
                     Equal(true, expected.SequenceEqual(main.TinySeeds), "host receives original result state");
-                    Equal(1, Control<ComboBox>(main, "TinyFinderWildSource").SelectedIndex, "searcher result fills native state input");
-                    Equal(true, Control<CheckBox>(main, "TinyFinderWildEnabled").Checked, "searcher result enables native encounter generator");
+                    Equal(1, WildControl<ComboBox>(main, "TinyFinderWildSource").SelectedIndex, "searcher result fills native state input");
+                    Equal(true, WildControl<CheckBox>(main, "TinyFinderWildEnabled").Checked, "searcher result enables native encounter generator");
                     Equal(true, timeline.NeedsCalibration, "original result requires event calibration");
                     original.Close();
                 }
