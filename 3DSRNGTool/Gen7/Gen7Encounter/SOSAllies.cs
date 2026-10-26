@@ -57,6 +57,10 @@ namespace Pk3DSRNGTool
                     Allies[0] = Allies[1] = Allies[2] = Ally[0];
                     Allies[3] = Allies[4] = Allies[5] = Allies[6] = Ally[1];
                     break;
+                case 12: // Flower colors: first 3 white, next 2 orange, last 2 caller's color
+                    Allies[0] = Allies[1] = Allies[2] = Ally[0];
+                    Allies[3] = Allies[4] = Ally[1];
+                    break;
             }
             return Allies;
         }
@@ -76,7 +80,12 @@ namespace Pk3DSRNGTool
 
         public static int[] getAllies(int LocationIndex, int species, int Ver, bool IsNight)
         {
-            if (PersonalTable.USUM.getFormeEntry(species & 0x7FF, species >> 11).EscapeRate == 0) // Zero call rate
+            int callForm = species >> 11;
+            // Ordinary Floette colors share the base caller's SOS rate. Their
+            // cosmetic personal entries contain zero; Eternal Flower is form 5.
+            if ((species & 0x7FF) == 670 && callForm < 5)
+                callForm = 0;
+            if (PersonalTable.USUM.getFormeEntry(species & 0x7FF, callForm).EscapeRate == 0) // Zero call rate
                 return new int[7];
             bool IsUltra = Ver > 6;
             if (IsUltra && LocationIndex == 124 && species != 0) // Haina Desert
@@ -150,6 +159,9 @@ namespace Pk3DSRNGTool
             new SOSAllies{ Species = 568, slottype = 4, Ally = new[] {569}, Ultra = false, },
             new SOSAllies{ Species = 625, slottype = 2, Ally = new[] {624}, },
             new SOSAllies{ Species = 636, slottype = 1, Ally = new[] {637}, },
+            new SOSAllies{ Species = 669 | (1 << 11), slottype = 12, Ally = new[] {669 | (4 << 11),669 | (2 << 11)}, Locations = new[]{040}, Ultra = true, },
+            new SOSAllies{ Species = 670, slottype = 12, Ally = new[] {670 | (4 << 11),670 | (2 << 11)}, Locations = new[]{128}, Ultra = true, },
+            new SOSAllies{ Species = 670 | (3 << 11), slottype = 12, Ally = new[] {670 | (4 << 11),670 | (2 << 11)}, Locations = new[]{156}, Ultra = true, },
             new SOSAllies{ Species = 661, slottype = 4, Ally = new[] {662}, Ultra = true, },
             new SOSAllies{ Species = 674, slottype = 7, Ally = new[] {675}, },
             new SOSAllies{ Species = 702, slottype = 10, Ally = new[] {777}, Ultra = true, },

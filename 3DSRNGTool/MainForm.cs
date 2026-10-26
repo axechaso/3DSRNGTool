@@ -918,8 +918,8 @@ namespace Pk3DSRNGTool
                         UpdateTip("Correction and NPC count might be different from default setting when there are rustling spots");
                     else
                         UpdateTip(null);
-                    Lv_min.Value = ea.VersionDifference && (Ver == 6 || Ver == 8) ? tmp.LevelMinMoon : tmp.LevelMin;
-                    Lv_max.Value = ea.VersionDifference && (Ver == 6 || Ver == 8) ? tmp.LevelMaxMoon : tmp.LevelMax;
+                    Lv_min.Value = tmp.GetLevelMin(Ver);
+                    Lv_max.Value = tmp.GetLevelMax(Ver);
                     if (tmp is EncounterArea_Crabrawler eac)
                         Filter_Lv.Value = eac.ScriptedLevel;
                 }
@@ -1495,7 +1495,7 @@ namespace Pk3DSRNGTool
                 {
                     RNGPool.DelayType = 0;
                     setting7.SpecForm = new int[11];
-                    if (ea.Locationidx == 1190) slottype = 1; // Poni Plains -4
+                    slottype = ((EncounterArea7)ea).SlotDistributionIndex;
                     for (int i = 1; i < 11; i++)
                         setting7.SpecForm[i] = slotspecies[EncounterArea7.SlotType[slotspecies[0]][i - 1]];
                     if (setting7.SpecialEnctr > 0)

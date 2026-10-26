@@ -35,6 +35,7 @@ jobs:
           Copy-Item 3DSRNGTool\bin\Release\* upload\3DSRNGTool -Exclude *.pdb
           Copy-Item LICENSE upload\3DSRNGTool
           Copy-Item Tests\Gen6\README.md upload\3DSRNGTool\G6-README.md
+          Copy-Item Tests\EncounterTables\README.md upload\3DSRNGTool\USUM-README.md
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

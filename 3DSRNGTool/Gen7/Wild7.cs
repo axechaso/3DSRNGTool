@@ -111,6 +111,9 @@ namespace Pk3DSRNGTool
                 time_elapse(3);
             }
             rt.Species = (short)(SpecForm[slot] & 0x7FF);
+            // Fixed encounter forms consume no RNG. Keep Minior's random form.
+            if (!IsMinior)
+                rt.Forme = (byte)(SpecForm[slot] >> 11);
 
             if (DelayTime > 0)
                 InlineDelay();

@@ -9,12 +9,19 @@ namespace Pk3DSRNGTool
         public override int[] Species { get; set; } = new int[1];
         public byte NPC, Correction = 1;
 
+        // Both SM and USUM use these rates. Poni Plains area 4 has its own
+        // raw slot order/rates; do not infer the order from summed percentages.
+        public byte SlotDistributionIndex => (byte)(Location == 166 && idx == 4 ? 1 : 0);
+
         public byte LevelMin;
         protected byte _LevelMax;
         public byte LevelMax { get { return _LevelMax > 0 ? _LevelMax : (byte)(LevelMin + 3); } set { _LevelMax = value; } }
         public short lvldiff; // Sun moon encounter area levels difference (Moon - Sun)
-        public byte LevelMinMoon => (byte)(LevelMin + lvldiff);
-        public byte LevelMaxMoon => (byte)(LevelMax + lvldiff);
+        private byte? moonLevelMin, moonLevelMax;
+        public byte LevelMinMoon { get { return moonLevelMin ?? (byte)(LevelMin + lvldiff); } set { moonLevelMin = value; } }
+        public byte LevelMaxMoon { get { return moonLevelMax ?? (byte)(LevelMax + lvldiff); } set { moonLevelMax = value; } }
+        public byte GetLevelMin(int version) => version == 6 || version == 8 ? LevelMinMoon : LevelMin;
+        public byte GetLevelMax(int version) => version == 6 || version == 8 ? LevelMaxMoon : LevelMax;
 
         public bool ReverseDayNight; // The base table contains nighttime species.
         public bool ReverseVersion; // The base table contains Moon-exclusive species.

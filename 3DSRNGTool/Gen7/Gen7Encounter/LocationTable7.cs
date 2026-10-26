@@ -715,7 +715,7 @@ namespace Pk3DSRNGTool
             {
                 Location = 012, idx = 1, mark = "最南端",
                 Correction = 31, NPC = 1,
-                LevelMin = 07,
+                LevelMin = 06,
                 Species = new[] {35,296,023,676,052,235,734,063,096},
             },
             new EncounterArea_USUM
@@ -792,8 +792,8 @@ namespace Pk3DSRNGTool
             {
                 Location = 040, // Melemele Meadow
                 Correction = 06,
-                LevelMin = 09,
-                Species = new[] {39,742,546,669,741,010,011,012},
+                LevelMin = 09, LevelMinMoon = 10, // Ultra Moon changes only the minimum, not the maximum.
+                Species = new[] {39,742,546,669 | (1 << 11),741 | (1 << 11),010,011,012}, // Yellow Flabebe, Pom-Pom Oricorio
             },
             new EncounterArea_USUM
             {
@@ -935,7 +935,7 @@ namespace Pk3DSRNGTool
                 Location = 054, idx = 2, mark = "南边",//6
                 Correction = 12, NPC = 1,
                 LevelMin = 14,
-                Species = new[] {41,506,741,174,736,734,731,174,133},
+                Species = new[] {41,506,741 | (2 << 11),174,736,734,731,174,133}, // Pa'u Oricorio
             },
             new EncounterArea_USUM
             {
@@ -962,7 +962,7 @@ namespace Pk3DSRNGTool
             {
                 Location = 064,
                 Correction = 27, NPC = 1,
-                LevelMin = 21,
+                LevelMin = 22,
                 Species = new[] {35,072,456,278,771,072,456,771,771},
             },
             new EncounterArea_USUM
@@ -1007,7 +1007,7 @@ namespace Pk3DSRNGTool
             {
                 Location = 134, //Malie Garden
                 Correction = 32,
-                LevelMin = 24,
+                LevelMin = 25,
                 Species = new[] {12,061,052,546,054,752,166},
             },
             new EncounterArea_USUM
@@ -1174,21 +1174,21 @@ namespace Pk3DSRNGTool
                 Location = 184, // Exeggutor Island
                 Correction = 09, NPC = 5,
                 LevelMin = 42,
-                Species = new[] {35,103,279,102,357,357,127,423,102},
+                Species = new[] {35,103,279,102,357,357,127,423 | (1 << 11),102}, // East Sea Gastrodon
             },
             new EncounterArea_USUM
             {
                 Location = 158, // Poni Wilds
                 Correction = 13,
                 LevelMin = 41,
-                Species = new[] {37,676,279,686,279,210,423,686,686},
+                Species = new[] {37,676,279,686,279,210,423 | (1 << 11),686,686}, // East Sea Gastrodon
             },
             new EncounterArea_USUM
             {
                 Location = 160,
                 Correction = 19, NPC = 5,
                 LevelMin = 41,
-                Species = new[] {37,676,279,686,279,210,423,686,686},
+                Species = new[] {37,676,279,686,279,210,423 | (1 << 11),686,686}, // East Sea Gastrodon
             },
             new EncounterArea_USUM
             {
@@ -1243,7 +1243,7 @@ namespace Pk3DSRNGTool
                 Location = 162,
                 Correction = 09, NPC = 1,
                 LevelMin = 41,
-                Species = new[] {41,073,423,279,279,457,457,073,131},
+                Species = new[] {41,073,423 | (1 << 11),279,279,457,457,073,131}, // East Sea Gastrodon
             },
             new EncounterArea_USUM
             {
@@ -1285,7 +1285,7 @@ namespace Pk3DSRNGTool
                 Location = 156, // Meadow
                 Correction = 6,
                 LevelMin = 54,
-                Species = new[] {39,743,546,670,741,200,546,546},
+                Species = new[] {39,743,546,670 | (3 << 11),741 | (3 << 11),200,546,546}, // Blue Floette, Sensu Oricorio
                 ReverseDayNight = true, // Misdreavus at night; Cottonee remains the Ultra Sun species.
             },
             new EncounterArea_USUM
