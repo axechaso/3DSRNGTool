@@ -155,6 +155,7 @@ namespace Pk3DSRNGTool
             Initializing = false;
 
             SetLocations();
+            CaptureTinyFinderWildLayout();
         }
 
         private void MainForm_Close(object sender, FormClosedEventArgs e)

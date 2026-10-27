@@ -56,6 +56,7 @@
     <Compile Include="Controls\TinySeedInputAdapter.cs" />
     <Compile Include="MainForm_TinyFinder.cs" />
     <Compile Include="MainForm_Gen6Wild.cs" />
+    <Compile Include="MainForm_TinyWildLayout.cs" />
     <Compile Include="Gen6\Gen6Encounter\TinyFinderArea6.cs" />
     <Compile Include="Controls\Frame_ID.cs" />
     <Compile Include="Controls\Frame_Misc.cs" />
