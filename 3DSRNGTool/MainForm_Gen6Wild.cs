@@ -36,6 +36,7 @@ namespace Pk3DSRNGTool
             tinyWildSource.SelectedIndex = 0;
             tinyWildEnabled.CheckedChanged += (s, e) => {
                 if (tinyWildEnabled.Checked) CreateTimeline.Checked = false;
+                if (!tinyWildEnabled.Checked && ea is TinyFinderArea6) ea = null;
                 if (!Initializing && Method == 2) RefreshLocation();
                 UpdateTinyFinderWildControls();
             };

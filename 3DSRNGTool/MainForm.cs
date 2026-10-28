@@ -209,6 +209,11 @@ namespace Pk3DSRNGTool
 
         private void RefreshLocation()
         {
+            // The TinyFinder table is temporary. Once its mode is disabled,
+            // discard the selected TinyFinder area before rebuilding the normal
+            // location list so a later search cannot read its missing levels.
+            if (!UseTinyFinderWild && ea is TinyFinderArea6)
+                ea = null;
             if (UseTinyFinderWild && TinyFinderWildMethod == TinyFinder.Controls.EnctrKey.FS)
             {
                 ea = null;
@@ -1673,7 +1678,7 @@ namespace Pk3DSRNGTool
                             setting6.SpecForm = new int[13];
                             setting6.SlotLevel = new byte[13];
                             slottype = 2;
-                            if (area == null || slotspecies.Length == 0)
+                            if (area == null || area.Level == null || slotspecies.Length == 0 || area.Level.Length < slotspecies.Length)
                                 break;
                             for (int i = 1; i < 13; i++)
                             {

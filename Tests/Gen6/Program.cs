@@ -474,9 +474,14 @@ internal static class Gen6Tests
                 Control<TabControl>(main, "RNGMethod").SelectedIndex = 2;
                 Control<ComboBox>(main, "CB_Category").SelectedIndex = 0;
                 var tiny = WildControl<CheckBox>(main, "TinyFinderWildEnabled");
+                var calc = Control<Button>(main, "B_Calc");
                 tiny.Checked = true;
                 Application.DoEvents();
+                calc.PerformClick();
+                Application.DoEvents();
                 tiny.Checked = false;
+                Application.DoEvents();
+                calc.PerformClick();
                 Application.DoEvents();
                 var location = Control<ComboBox>(main, "MetLocation");
                 if (location.Items.Count > 5)
