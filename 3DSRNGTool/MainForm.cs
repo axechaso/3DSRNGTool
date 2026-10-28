@@ -988,10 +988,15 @@ namespace Pk3DSRNGTool
             }
             else if (Gen6)
             {
-                ea = LocationTable6.TableNow.FirstOrDefault(t => t.Locationidx == (int)MetLocation.SelectedValue);
+                // XY normal encounters do not have a static location table. When
+                // TinyFinder has just been turned off, the combo can still hold
+                // its previous selection while that table is already null.
+                // Treat that stale selection as no area instead of crashing the
+                // UI while the user changes locations.
+                ea = LocationTable6.TableNow?.FirstOrDefault(t => t.Locationidx == (int)MetLocation.SelectedValue);
                 if (ea is TinyFinderArea6)
                     ApplyTinyFinderLocationDefaults();
-                else if (FormPM is PKMW6 pm && pm.Type == EncounterType.Fishing)
+                else if (ea is FishingArea6 && FormPM is PKMW6 pm && pm.Type == EncounterType.Fishing)
                 {
                     Special_th.Value = SuctionCups ? 98 : 49;
                     ea = (ea as FishingArea6).GetRodArea(pm.Species);

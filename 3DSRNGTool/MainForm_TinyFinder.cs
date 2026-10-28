@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Windows.Forms;
 using Pk3DSRNGTool.Controls;
+using Pk3DSRNGTool.Core;
 
 namespace Pk3DSRNGTool
 {
@@ -77,7 +78,8 @@ namespace Pk3DSRNGTool
                 RefreshLocation();
                 if (result.Area != null)
                 {
-                    var area = LocationTable6.TableNow.OfType<TinyFinderArea6>().FirstOrDefault(a => a.Data.Name == result.Area.Name && a.Data.Terrain == result.Area.Terrain);
+                    var area = (LocationTable6.TableNow ?? new EncounterArea[0]).OfType<TinyFinderArea6>()
+                        .FirstOrDefault(a => a.Data.Name == result.Area.Name && a.Data.Terrain == result.Area.Terrain);
                     if (area != null) MetLocation.SelectedValue = area.Locationidx;
                 }
                 tinyWildNPC.Value = options.NPC; tinyWildParty.Value = options.PartySize; tinyWildBag.Value = options.BagAdvances;

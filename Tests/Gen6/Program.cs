@@ -36,6 +36,7 @@ internal static class Gen6Tests
         Check("TinyFinder wild data and generators work without a window", WildCoreIntegration);
         Check("Main G6 wild search uses TinyFinder and keeps the existing results table", NativeWildIntegration);
         Check("Inline TinyMT options preserve the original layout and follow encounter type", WildOptionsLayout);
+        Check("Turning TinyMT off keeps the XY location selector safe", TinyWildXYToggle);
         Console.WriteLine("{0} assertions; {1} failed cases.", assertions, failures);
         return failures == 0 ? 0 : 1;
     }
@@ -457,6 +458,34 @@ internal static class Gen6Tests
         select(EncounterType.Normal);
         Equal(false, ((TinyFinder.WildOptions)optionsProperty.GetValue(main, null)).Exclusive, "hidden DexNav selection does not affect normal wild");
         expect(new[] { "Party", "Honey" });
+    }
+
+    private static void TinyWildXYToggle()
+    {
+        var program = typeof(MainForm).Assembly.GetType("Pk3DSRNGTool.Program");
+        using (var main = new MainForm())
+        {
+            program.GetField("mainform").SetValue(null, main);
+            try
+            {
+                main.Show();
+                Application.DoEvents();
+                main.Ver = 1; // Y: normal XY wild encounter
+                Control<TabControl>(main, "RNGMethod").SelectedIndex = 2;
+                Control<ComboBox>(main, "CB_Category").SelectedIndex = 0;
+                var tiny = WildControl<CheckBox>(main, "TinyFinderWildEnabled");
+                tiny.Checked = true;
+                Application.DoEvents();
+                tiny.Checked = false;
+                Application.DoEvents();
+                var location = Control<ComboBox>(main, "MetLocation");
+                if (location.Items.Count > 5)
+                    location.SelectedIndex = 5;
+                Application.DoEvents();
+                Equal(false, tiny.Checked, "XY toggle leaves TinyMT disabled");
+            }
+            finally { program.GetField("mainform").SetValue(null, null); }
+        }
     }
 
     private static void CheckWildLayout(MainForm main)
