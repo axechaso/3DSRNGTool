@@ -19,6 +19,7 @@ namespace Pk3DSRNGTool
             eggTinyInput = new TinySeedInputAdapter(TinyMT_Status, "EggTiny", new[] { St0, St1, St2, St3 }, label8, label11, label13, label16);
             eggTinyInput.StateChanged += Status_ValueChanged;
             InitializeTinyFinderWild();
+            InitializeTinyStationary();
         }
 
         public void ShowTinyFinder()

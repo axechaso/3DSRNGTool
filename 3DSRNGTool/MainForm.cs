@@ -64,15 +64,6 @@ namespace Pk3DSRNGTool
         {
             InitializeComponent();
             InitializeTinyInputs();
-            var tinyIndexMenu = new ToolStripMenuItem("G6 遭遇搜索器（TinyFinder）");
-            tinyIndexMenu.Click += (s, e) =>
-            {
-                ShowTinyFinder();
-            };
-            M_Tool.DropDownItems.Insert(4, tinyIndexMenu);
-            var mtSearchMenu = new ToolStripMenuItem("G6 MT／PID／EC／群战种子搜索（TinyFinder）");
-            mtSearchMenu.Click += (s, e) => ShowTinyFinderMT();
-            M_Tool.DropDownItems.Insert(5, mtSearchMenu);
         }
 
         #region Form Loading
@@ -553,6 +544,7 @@ namespace Pk3DSRNGTool
             UpdateTTTMethod();
             CreateTimeline.Visible = TimeSpan.Visible = Gen7 && Method < 3 || MainRNGEgg.Checked || gen6timeline_available;
             UpdateTinyFinderWildControls();
+            UpdateTinyStationaryControls();
         }
 
         private void SearchMethod_CheckedChanged(object sender, EventArgs e)
@@ -864,12 +856,18 @@ namespace Pk3DSRNGTool
             DoubleEverstone(null, null);
             SetLeapRange();
             UpdateTinyFinderWildControls();
+            UpdateTinyStationaryControls();
 
             switch (Method)
             {
                 case 0:
                     Sta_Setting.Controls.Add(EnctrPanel); Sta_Setting.Controls.Add(Raining);
                     Sta_Setting.Controls.Add(B_OpenTool); Sta_Setting.Controls.Add(AssumeSynced);
+                    // Move the encounter controls before refreshing the inline
+                    // TinyMT panel.  Refreshing earlier leaves the category
+                    // controls on the previous method's page during a direct
+                    // method switch (and the Berry/Ambush switch stays hidden).
+                    UpdateTinyStationaryControls();
                     return;
                 case 1: NPC.Value = 4; Event_CheckedChanged(null, null); return;
                 case 2:
@@ -1245,6 +1243,7 @@ namespace Pk3DSRNGTool
                     }
                 }
                 if (UseTinyFinderWild) { ApplyTinyFinderLocationDefaults(); UpdateTinyFinderWildControls(); }
+                UpdateTinyStationaryControls();
                 return;
             }
             switch (specform)
@@ -1272,6 +1271,7 @@ namespace Pk3DSRNGTool
             Sta_AbilityLocked.Enabled = Sta_Ability.Enabled =
             AlwaysSynced.Enabled =
             ShinyLocked.Enabled = Fix3v.Enabled = FormPM.Conceptual && !IsTransporter;
+            UpdateTinyStationaryControls();
         }
         #endregion
 

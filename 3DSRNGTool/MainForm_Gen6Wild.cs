@@ -129,7 +129,7 @@ namespace Pk3DSRNGTool
             tinyWildEnabled.Enabled = supported;
             if (visible && !supported) tinyWildEnabled.Checked = false;
             bool active = supported && UseTinyFinderWild;
-            tinyWildSeedRow.Visible = tinyWildParameters.Visible = tinyWildSearcher.Visible = active;
+            tinyWildSeedRow.Visible = tinyWildParameters.Visible = active;
             // The inline seed controls replace the old Tiny Timeline button
             // while this mode is active; restore it for the legacy layout.
             B_OpenTool.Visible = !active && (gen6timeline_available || IsHorde);

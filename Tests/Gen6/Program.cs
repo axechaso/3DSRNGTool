@@ -30,6 +30,7 @@ internal static class Gen6Tests
         Check("Timeline menus and connection messages follow the selected language", TimelineLanguage);
         Check("Index boundaries, filters, RTC and cancellation", IndexSearch);
         Check("Main search keeps MT aligned to displayed frames", MainTimelineSearch);
+        Check("Native TinyMT stationary panel calculates Berry and Ambush", NativeStationaryTiny);
         Check("Index window searches and transfers state", IndexWindow);
         Check("All host TinyMT state inputs accept PokeReader", AllReaderInputs);
         Check("Original TinyFinder wild window generates and transfers results", OriginalTinyFinderWindow);
@@ -583,6 +584,71 @@ internal static class Gen6Tests
             Equal(true, ReferenceEquals(horde.HordeData, pool.GetField("horde").GetValue(null)), "main uses exact indexed horde data");
         }
         program.GetField("mainform").SetValue(null, null);
+    }
+
+    private static void NativeStationaryTiny()
+    {
+        var program = typeof(MainForm).Assembly.GetType("Pk3DSRNGTool.Program");
+        var settingsType = typeof(MainForm).Assembly.GetType("Pk3DSRNGTool.Properties.Settings");
+        var settings = settingsType.GetProperty("Default").GetValue(null, null);
+        Func<string, byte> getSetting = name => (byte)settingsType.GetProperty(name).GetValue(settings, null);
+        Action<string, byte> setSetting = (name, value) => settingsType.GetProperty(name).SetValue(settings, value, null);
+        byte oldGameVersion = getSetting("GameVersion"), oldMethod = getSetting("Method"), oldStoredMethod = getSetting("_Method");
+        byte oldCategory = getSetting("Category"), oldPoke = getSetting("Poke");
+        using (var main = new MainForm())
+        {
+            program.GetField("mainform").SetValue(null, main);
+            try
+            {
+                main.Show();
+                Application.DoEvents();
+                main.Ver = 1; // Y: XY Berry Tree / Ambush categories
+                Control<TabControl>(main, "RNGMethod").SelectedIndex = 0;
+                Invoke(main, "RNGMethod_Changed");
+                main.GetType().GetMethod("RefreshCategory", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(main, null);
+                var category = Control<ComboBox>(main, "CB_Category");
+                var enabled = Control<CheckBox>(main, "TinyStationaryEnabled");
+                var panel = Field<Panel>(main, "tinyStationaryPanel");
+                var seed = Control<TextBox>(main, "TinyStationarySeed");
+                var ignore = Control<CheckBox>(main, "IgnoreFilters");
+                var time = Control<NumericUpDown>(main, "TimeSpan");
+                var frameMin = Control<NumericUpDown>(main, "Frame_min");
+                var frameMax = Control<NumericUpDown>(main, "Frame_max");
+                var calc = Control<Button>(main, "B_Calc");
+
+                var categories = Pokemon.getCategoryList(main.Ver, 0);
+                int berryIndex = Array.FindIndex(categories, c => c.Text == "Berry Tree");
+                int ambushIndex = Array.FindIndex(categories, c => c.Text == "Ambush Encounters");
+                category.SelectedIndex = berryIndex;
+                Invoke(main, "Poke_SelectedIndexChanged");
+                if (!enabled.Visible)
+                    throw new Exception("Berry category state: ver=" + main.Ver + ", rng=" + Control<TabControl>(main, "RNGMethod").SelectedIndex + ", parent=" + category.Parent.Parent.Name + ", index=" + category.SelectedIndex + ", text=" + category.Text + ", berry=" + berryIndex + ", count=" + category.Items.Count);
+                Equal(false, panel.Visible, "Berry options stay hidden until enabled");
+                enabled.Checked = true;
+                seed.Text = "12345678";
+                ignore.Checked = true;
+                frameMin.Value = 0; frameMax.Value = 60; time.Value = 1;
+                calc.PerformClick();
+                Application.DoEvents();
+                Equal(true, panel.Visible, "Berry options stay on the main page");
+                Equal(true, Field<System.Collections.IEnumerable>(main, "Frames").Cast<object>().Any(), "Berry TinyMT search returns frames");
+                Equal(true, Field<Form>(main, "tinyFinderWindow") == null, "Berry TinyMT search does not open TinyFinder");
+
+                category.SelectedIndex = ambushIndex;
+                Invoke(main, "Poke_SelectedIndexChanged");
+                Equal(true, enabled.Visible, "Ambush category shows native TinyMT switch");
+                Equal(true, panel.Visible, "Ambush keeps the native options visible");
+                calc.PerformClick();
+                Application.DoEvents();
+                Equal(true, Field<System.Collections.IEnumerable>(main, "Frames").Cast<object>().Any(), "Ambush TinyMT search returns frames");
+            }
+            finally
+            {
+                program.GetField("mainform").SetValue(null, null);
+                setSetting("GameVersion", oldGameVersion); setSetting("Method", oldMethod); setSetting("_Method", oldStoredMethod);
+                setSetting("Category", oldCategory); setSetting("Poke", oldPoke);
+            }
+        }
     }
     private static void IndexWindow()
     {

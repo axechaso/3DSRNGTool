@@ -13,6 +13,7 @@ namespace Pk3DSRNGTool
         private void Search6()
         {
             if (UseTinyFinderWild) { Search6_TinyFinderWild(); return; }
+            if (UseTinyStationary) { Search6_Timeline(); return; }
             switch (Method)
             {
                 case 0 when gen6timeline_available && CreateTimeline.Checked:
@@ -57,7 +58,8 @@ namespace Pk3DSRNGTool
 
         private void Search6_Timeline()
         {
-            if (!TTT.HasSeed || TTT.NeedsCalibration)
+            bool nativeStationary = UseTinyStationary;
+            if (!nativeStationary && (!TTT.HasSeed || TTT.NeedsCalibration))
             {
                 FormUtil.Error("Please Calibrate Timeline");
                 return;
@@ -67,8 +69,13 @@ namespace Pk3DSRNGTool
             int min, max;
             try
             {
-                UpdateTTTMethod();
-                timeline = TTT.gettimeline(ForMainForm: true);
+                if (nativeStationary)
+                    timeline = GetTinyStationaryTimeline();
+                else
+                {
+                    UpdateTTTMethod();
+                    timeline = TTT.gettimeline(ForMainForm: true);
+                }
                 min = Math.Max((int)Frame_min.Value, timeline.Startingframe + 2);
                 max = (int)Math.Min(FuncUtil.MAXFRAME, (long)TimeSpan.Value * 60 + min);
                 timeline.Maxframe = max;

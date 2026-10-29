@@ -10,7 +10,6 @@ namespace Pk3DSRNGTool
     {
         private FlowLayoutPanel tinyWildSeedRow, tinyWildParameters;
         private Panel tinyWildDefaults;
-        private Button tinyWildSearcher;
         private LinkLabel tinyWildHelp;
         private ToolTip tinyWildTips;
         private Dictionary<Control, Rectangle> tinyWildOriginalBounds;
@@ -43,9 +42,6 @@ namespace Pk3DSRNGTool
             tinyWildHelp = new LinkLabel { Name = "TinyFinderHelp", Text = "?", AutoSize = true, Visible = false, TabStop = true };
             tinyWildTips = new ToolTip(components) { AutoPopDelay = 15000, InitialDelay = 400, ReshowDelay = 100, ShowAlways = true };
             tinyWildHelp.LinkClicked += (s, e) => tinyWildTips.Show(TinyFinderWildHelpText(), tinyWildHelp, 0, tinyWildHelp.Height + 4, 15000);
-            tinyWildSearcher = new Button { Name = "TinyFinderSearcher", Text = "遭遇搜索器…", Visible = false,
-                Location = new Point(L_Lead.Left, B_OpenTool.Top), Size = new Size(AssumeSynced.Left - L_Lead.Left - 8, B_OpenTool.Height) };
-            tinyWildSearcher.Click += (s, e) => ShowTinyFinder();
             tinyWildSeedRow = new FlowLayoutPanel { Name = "TinyFinderSeedRow", WrapContents = false, Visible = false, Margin = new Padding(0) };
             tinyWildSource.Margin = tinyWildSeed.Margin = new Padding(0, 0, 8, 0);
             tinyWildSeed.Font = Seed.Font;
@@ -59,7 +55,7 @@ namespace Pk3DSRNGTool
             tinyWildDefaults = new Panel { Name = "TinyFinderLocationDefaults", Visible = false };
             tinyWildDefaults.Controls.AddRange(new Control[] { tinyWildNPC, tinyWildBag, tinyWildBlink, tinyWildHoneyDelay,
                 tinyWildPossibleHorde, tinyWildRadarGrass, tinyWildSummary });
-            Wild_Setting.Controls.AddRange(new Control[] { tinyWildEnabled, tinyWildHelp, tinyWildSearcher, tinyWildSeedRow,
+            Wild_Setting.Controls.AddRange(new Control[] { tinyWildEnabled, tinyWildHelp, tinyWildSeedRow,
                 tinyWildParameters, tinyWildDefaults, tinyWildHoney, tinyWildMovingHorde, tinyWildActiveNav,
                 tinyWildExclusive, tinyWildMusic, tinyWildEmulator });
             foreach (var flag in new[] { tinyWildHoney, tinyWildMovingHorde, tinyWildActiveNav, tinyWildExclusive, tinyWildMusic, tinyWildEmulator }) flag.Visible = false;
@@ -119,8 +115,7 @@ namespace Pk3DSRNGTool
             L_SyncNature.Top = L_GenderRatio.Top = y(48);
             MetLocation.Top = SlotSpecies.Top = y(104);
             L_Location.Top = L_Slots.Top = y(104) + 3;
-            tinyWildSearcher.SetBounds(left, y(136), 122, y(28));
-            tinyWildSeedRow.SetBounds(left + 132, y(136), right - left - 132, y(28));
+            tinyWildSeedRow.SetBounds(left, y(136), right - left, y(28));
             int seedWidth = tinyWildSeedRow.ClientSize.Width - tinyWildSource.Width
                 - tinyWildSource.Margin.Horizontal - tinyWildSeed.Margin.Horizontal - 4;
             tinyWildSeed.Width = Math.Max(90, seedWidth);
