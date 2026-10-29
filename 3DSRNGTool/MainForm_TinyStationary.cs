@@ -113,8 +113,6 @@ namespace Pk3DSRNGTool
             tinyStationaryCallType.Items.AddRange(new object[] { "眨眼 (+2)", "眨眼 (+1)", "短眨眼", "发呆" });
             tinyStationaryCallType.SelectedIndex = 0;
 
-            tinyStationaryEnabled.Location = new Point(365, 4);
-            tinyStationaryHelp.Location = new Point(492, 5);
             tinyStationaryPanel.Location = new Point(8, 126);
             // Keep the same two compact rows as the inline wild controls.
             // The source and state fields use the full row; no extra group
@@ -172,7 +170,21 @@ namespace Pk3DSRNGTool
             RNGMethod.SelectedIndexChanged += (s, e) => UpdateTinyStationaryControls();
             Gameversion.SelectedIndexChanged += (s, e) => UpdateTinyStationaryControls();
             CreateTimeline.CheckedChanged += (s, e) => UpdateTinyStationaryControls();
+            LayoutTinyStationaryHeader();
             UpdateTinyStationaryControls();
+        }
+
+        private void LayoutTinyStationaryHeader()
+        {
+            int width = Sta_Setting.ClientSize.Width;
+            if (width <= 0)
+                width = Sta_Setting.Width - Sta_Setting.Padding.Horizontal;
+            int right = Math.Max(8, width - 8);
+            int helpWidth = Math.Max(12, tinyStationaryHelp.PreferredSize.Width);
+            int helpLeft = Math.Max(0, right - helpWidth);
+            int toggleLeft = Math.Max(0, helpLeft - tinyStationaryEnabled.PreferredSize.Width - 10);
+            tinyStationaryEnabled.Location = new Point(toggleLeft, 4);
+            tinyStationaryHelp.Location = new Point(helpLeft, 5);
         }
 
         private string TinyStationaryHelpText()
@@ -200,6 +212,7 @@ namespace Pk3DSRNGTool
             tinyStationaryUpdating = true;
             try
             {
+                LayoutTinyStationaryHeader();
                 bool relevant = IsTinyStationaryCategory;
                 if (!relevant && tinyStationaryEnabled.Checked)
                     tinyStationaryEnabled.Checked = false;

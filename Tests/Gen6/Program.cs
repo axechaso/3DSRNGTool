@@ -608,6 +608,8 @@ internal static class Gen6Tests
                 main.GetType().GetMethod("RefreshCategory", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(main, null);
                 var category = Control<ComboBox>(main, "CB_Category");
                 var enabled = Control<CheckBox>(main, "TinyStationaryEnabled");
+                var stationary = Control<GroupBox>(main, "Sta_Setting");
+                var help = Control<LinkLabel>(main, "TinyStationaryHelp");
                 var panel = Field<Panel>(main, "tinyStationaryPanel");
                 var seed = Control<TextBox>(main, "TinyStationarySeed");
                 var ignore = Control<CheckBox>(main, "IgnoreFilters");
@@ -623,6 +625,8 @@ internal static class Gen6Tests
                 Invoke(main, "Poke_SelectedIndexChanged");
                 if (!enabled.Visible)
                     throw new Exception("Berry category state: ver=" + main.Ver + ", rng=" + Control<TabControl>(main, "RNGMethod").SelectedIndex + ", parent=" + category.Parent.Parent.Name + ", index=" + category.SelectedIndex + ", text=" + category.Text + ", berry=" + berryIndex + ", count=" + category.Items.Count);
+                Equal(true, stationary.ClientRectangle.Contains(enabled.Bounds), "TinyMT switch stays inside stationary settings");
+                Equal(true, stationary.ClientRectangle.Contains(help.Bounds), "TinyMT help link stays inside stationary settings");
                 Equal(false, panel.Visible, "Berry options stay hidden until enabled");
                 enabled.Checked = true;
                 seed.Text = "12345678";
