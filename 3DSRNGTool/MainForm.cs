@@ -47,6 +47,7 @@ namespace Pk3DSRNGTool
         private bool MenuMethod { get => FidgetPanel.Visible; set => FidgetPanel.Visible = value; }
         private byte lastgen;
         private EncounterArea ea;
+        private bool refreshingLocation;
         private bool IsNight => Night.Checked;
         private int[] slotspecies => ea.getSpecies(Ver, IsNight) ?? new int[0];
         private int[] SOSSlots => SOSAllies.getAllies(ea.Locationidx, (int)SlotSpecies.SelectedValue, Ver, IsNight);
@@ -199,6 +200,15 @@ namespace Pk3DSRNGTool
         }
 
         private void RefreshLocation()
+        {
+            if (refreshingLocation)
+                return;
+            refreshingLocation = true;
+            try { RefreshLocationCore(); }
+            finally { refreshingLocation = false; }
+        }
+
+        private void RefreshLocationCore()
         {
             // The TinyFinder table is temporary. Once its mode is disabled,
             // discard the selected TinyFinder area before rebuilding the normal
@@ -1816,7 +1826,11 @@ namespace Pk3DSRNGTool
                 AdjustDGVColumns();
             }
             RNGPool.Clear();
-            GC.Collect();
+            // A full blocking collection here freezes the form after large
+            // result sets have just been bound to the grid. Let the runtime
+            // schedule an optimized background collection instead so the
+            // controls remain responsive when the user changes TinyMT mode.
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Optimized, false);
         }
 
         private static Font BoldFont = new Font("Microsoft Sans Serif", 8, FontStyle.Bold);

@@ -26,6 +26,7 @@ namespace Pk3DSRNGTool
         private readonly Label tinyWildSummary = new Label { Name = "TinyFinderWildSummary", AutoSize = true, Text = "TinyMT 决定遭遇；主 MT 决定性格、个体值和 PID。" };
         private int tinyWildPreviousSource;
         private WildPrediction activeWildPrediction;
+        private bool tinyWildUpdating;
         private bool UseTinyFinderWild => Ver < 4 && Method == 2 && tinyWildEnabled.Checked;
         private static CheckBox WildCheck(string name, string text) => new CheckBox { Name = name, Text = text, AutoSize = true, Margin = new Padding(4, 5, 4, 0) };
         private static NumericUpDown WildNumber(string name, int min, int max, int value) => new NumericUpDown { Name = name, Minimum = min, Maximum = max, Value = value, Width = max > 999 ? 66 : 53 };
@@ -35,10 +36,16 @@ namespace Pk3DSRNGTool
             tinyWildSource.Items.AddRange(new[] { "PokeReader 种子", "四段状态 (3→0)", "时间线状态" });
             tinyWildSource.SelectedIndex = 0;
             tinyWildEnabled.CheckedChanged += (s, e) => {
-                if (tinyWildEnabled.Checked) CreateTimeline.Checked = false;
-                if (!tinyWildEnabled.Checked && ea is TinyFinderArea6) ea = null;
-                if (!Initializing && Method == 2) RefreshLocation();
-                UpdateTinyFinderWildControls();
+                if (tinyWildUpdating) return;
+                tinyWildUpdating = true;
+                try
+                {
+                    if (tinyWildEnabled.Checked) CreateTimeline.Checked = false;
+                    if (!tinyWildEnabled.Checked && ea is TinyFinderArea6) ea = null;
+                    if (!Initializing && Method == 2) RefreshLocation();
+                    UpdateTinyFinderWildControls();
+                }
+                finally { tinyWildUpdating = false; }
             };
             tinyWildSource.SelectedIndexChanged += (s, e) => {
                 int next = tinyWildSource.SelectedIndex;

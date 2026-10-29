@@ -38,6 +38,7 @@ internal static class Gen6Tests
         Check("Main G6 wild search uses TinyFinder and keeps the existing results table", NativeWildIntegration);
         Check("Inline TinyMT options preserve the original layout and follow encounter type", WildOptionsLayout);
         Check("Turning TinyMT off keeps the XY location selector safe", TinyWildXYToggle);
+        Check("Turning TinyMT on after a main search remains responsive", TinyWildAfterMainSearch);
         Console.WriteLine("{0} assertions; {1} failed cases.", assertions, failures);
         return failures == 0 ? 0 : 1;
     }
@@ -494,6 +495,56 @@ internal static class Gen6Tests
         }
     }
 
+    private static void TinyWildAfterMainSearch()
+    {
+        var program = typeof(MainForm).Assembly.GetType("Pk3DSRNGTool.Program");
+        using (var main = new MainForm())
+        {
+            program.GetField("mainform").SetValue(null, main);
+            try
+            {
+                main.Show();
+                Application.DoEvents();
+                main.Ver = 1;
+                Control<TabControl>(main, "RNGMethod").SelectedIndex = 2;
+                Control<ComboBox>(main, "CB_Category").SelectedIndex = 0;
+                var tiny = WildControl<CheckBox>(main, "TinyFinderWildEnabled");
+                var calc = Control<Button>(main, "B_Calc");
+                Control<CheckBox>(main, "IgnoreFilters").Checked = true;
+                Control<NumericUpDown>(main, "Frame_min").Value = 0;
+                Control<NumericUpDown>(main, "Frame_max").Value = 50000;
+                var location = Control<ComboBox>(main, "MetLocation");
+                if (location.Items.Count > 5)
+                    location.SelectedIndex = 5;
+                Application.DoEvents();
+                calc.PerformClick();
+                Application.DoEvents();
+                Equal(true, Field<System.Collections.IEnumerable>(main, "Frames").Cast<object>().Any(), "main search has results before TinyMT toggle");
+                var grid = Control<DataGridView>(main, "DGV");
+                if (grid.Rows.Count > 0)
+                {
+                    var visibleColumn = grid.Columns.Cast<DataGridViewColumn>().FirstOrDefault(c => c.Visible);
+                    if (visibleColumn != null)
+                        grid.CurrentCell = grid.Rows[0].Cells[visibleColumn.Index];
+                }
+                Application.DoEvents();
+                var toggleTimer = System.Diagnostics.Stopwatch.StartNew();
+                WildControl<TextBox>(main, "TinyFinderWildSeed").Text = "12345678";
+                tiny.Checked = true;
+                Application.DoEvents();
+                Console.WriteLine("TinyMT toggle after 50000-frame main search: {0} ms", toggleTimer.ElapsedMilliseconds);
+                Equal(true, tiny.Checked, "TinyMT remains enabled after existing results");
+                Equal(true, WildControl<FlowLayoutPanel>(main, "TinyFinderSeedRow").Visible, "TinyMT controls appear after existing results");
+                var tinySearchTimer = System.Diagnostics.Stopwatch.StartNew();
+                calc.PerformClick();
+                Application.DoEvents();
+                Console.WriteLine("TinyMT search after 50000-frame main search: {0} ms", tinySearchTimer.ElapsedMilliseconds);
+                Equal(true, tinySearchTimer.ElapsedMilliseconds < 15000, "TinyMT search returns without hanging after existing results");
+            }
+            finally { program.GetField("mainform").SetValue(null, null); }
+        }
+    }
+
     private static void CheckWildLayout(MainForm main)
     {
         var group = Control<GroupBox>(main, "Wild_Setting");
@@ -628,10 +679,14 @@ internal static class Gen6Tests
                 Equal(true, stationary.ClientRectangle.Contains(enabled.Bounds), "TinyMT switch stays inside stationary settings");
                 Equal(true, stationary.ClientRectangle.Contains(help.Bounds), "TinyMT help link stays inside stationary settings");
                 Equal(false, panel.Visible, "Berry options stay hidden until enabled");
+                ignore.Checked = true;
+                frameMin.Value = 0; frameMax.Value = 20;
+                calc.PerformClick();
+                Application.DoEvents();
+                Equal(true, Field<System.Collections.IEnumerable>(main, "Frames").Cast<object>().Any(), "Berry main search has results before TinyMT toggle");
                 enabled.Checked = true;
                 seed.Text = "12345678";
-                ignore.Checked = true;
-                frameMin.Value = 0; frameMax.Value = 60; time.Value = 1;
+                frameMax.Value = 60; time.Value = 1;
                 calc.PerformClick();
                 Application.DoEvents();
                 Equal(true, panel.Visible, "Berry options stay on the main page");
